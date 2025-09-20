@@ -1,7 +1,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import teams, players, depth, contracts, picks, transactions, games, standings
+from app.routers import (
+    teams,
+    players,
+    depth,
+    contracts,
+    picks,
+    transactions,
+    games,
+    standings,
+    roster,
+)
 
 app = FastAPI(title="GM Simulator", version="0.1.0")
 
@@ -21,6 +31,8 @@ app.include_router(picks.router)
 app.include_router(transactions.router)
 app.include_router(games.router)
 app.include_router(standings.router)
+app.include_router(roster.router)
+
 
 @app.get("/healthz")
 def healthz():

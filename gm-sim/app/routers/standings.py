@@ -8,6 +8,7 @@ from typing import List
 
 router = APIRouter(prefix="/standings", tags=["standings"])
 
+
 @router.get("/{season}", response_model=List[StandingRead])
 async def get_standings(season: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Standing).where(Standing.season == season))
