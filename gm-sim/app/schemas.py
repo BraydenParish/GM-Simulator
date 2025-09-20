@@ -1,5 +1,8 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Optional, List, Any
+import builtins
+from typing import Any, List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
+
 
 class TeamBase(BaseModel):
     name: str
@@ -12,58 +15,71 @@ class TeamBase(BaseModel):
     cap_space: Optional[int] = 0
     cap_year: Optional[int] = 2027
 
+
 class TeamCreate(TeamBase):
     pass
+
 
 class TeamRead(TeamBase):
     id: int
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class PlayerBase(BaseModel):
     name: str
     pos: str
-    team_id: Optional[int] = None
-    age: Optional[int] = None
-    height: Optional[int] = None
-    weight: Optional[int] = None
-    ovr: Optional[int] = None
-    pot: Optional[int] = None
-    spd: Optional[int] = None
-    acc: Optional[int] = None
-    agi: Optional[int] = None
-    str: Optional[int] = None
-    awr: Optional[int] = None
-    injury_status: Optional[str] = "OK"
-    morale: Optional[int] = 50
-    stamina: Optional[int] = 80
-    thp: Optional[int] = None
-    tha_s: Optional[int] = None
-    tha_m: Optional[int] = None
-    tha_d: Optional[int] = None
-    tup: Optional[int] = None
-    rel: Optional[int] = None
-    rr: Optional[int] = None
-    cth: Optional[int] = None
-    cit: Optional[int] = None
-    pbk: Optional[int] = None
-    rbk: Optional[int] = None
-    iblk: Optional[int] = None
-    oblk: Optional[int] = None
-    mcv: Optional[int] = None
-    zcv: Optional[int] = None
-    prs: Optional[int] = None
-    pmv: Optional[int] = None
-    fmv: Optional[int] = None
-    bsh: Optional[int] = None
-    purs: Optional[int] = None
+    team_id: int | None = None
+    age: int | None = None
+    height: int | None = None
+    weight: int | None = None
+    ovr: int | None = None
+    pot: int | None = None
+    spd: int | None = None
+    acc: int | None = None
+    agi: int | None = None
+    str: int | None = None
+    awr: int | None = None
+    injury_status: builtins.str = Field(default="OK")
+    morale: int | None = 50
+    stamina: int | None = 80
+    thp: int | None = None
+    tha_s: int | None = None
+    tha_m: int | None = None
+    tha_d: int | None = None
+    tup: int | None = None
+    rel: int | None = None
+    rr: int | None = None
+    cth: int | None = None
+    cit: int | None = None
+    pbk: int | None = None
+    rbk: int | None = None
+    iblk: int | None = None
+    oblk: int | None = None
+    mcv: int | None = None
+    zcv: int | None = None
+    prs: int | None = None
+    pmv: int | None = None
+    fmv: int | None = None
+    bsh: int | None = None
+    purs: int | None = None
+
 
 class PlayerCreate(PlayerBase):
     pass
 
+
 class PlayerRead(PlayerBase):
     id: int
     model_config = ConfigDict(from_attributes=True)
+
+
+class PlayerListResponse(BaseModel):
+    items: List[PlayerRead]
+    total: int
+    page: int
+    page_size: int
+
 
 class ContractBase(BaseModel):
     player_id: int
@@ -79,12 +95,15 @@ class ContractBase(BaseModel):
     y3_cap: Optional[int] = None
     y3_dead: Optional[int] = None
 
+
 class ContractCreate(ContractBase):
     pass
+
 
 class ContractRead(ContractBase):
     id: int
     model_config = ConfigDict(from_attributes=True)
+
 
 class DepthChartBase(BaseModel):
     team_id: int
@@ -93,11 +112,14 @@ class DepthChartBase(BaseModel):
     player_id: int
     snap_pct_plan: float
 
+
 class DepthChartCreate(DepthChartBase):
     pass
 
+
 class DepthChartRead(DepthChartBase):
     model_config = ConfigDict(from_attributes=True)
+
 
 class DraftPickBase(BaseModel):
     year: int
@@ -108,12 +130,15 @@ class DraftPickBase(BaseModel):
     jj_value: Optional[int] = None
     alt_value: Optional[int] = None
 
+
 class DraftPickCreate(DraftPickBase):
     pass
+
 
 class DraftPickRead(DraftPickBase):
     id: int
     model_config = ConfigDict(from_attributes=True)
+
 
 class TransactionBase(BaseModel):
     type: str
@@ -123,13 +148,16 @@ class TransactionBase(BaseModel):
     cap_delta_from: Optional[int] = None
     cap_delta_to: Optional[int] = None
 
+
 class TransactionCreate(TransactionBase):
     pass
+
 
 class TransactionRead(TransactionBase):
     id: int
     timestamp: Any
     model_config = ConfigDict(from_attributes=True)
+
 
 class GameBase(BaseModel):
     season: int
@@ -142,12 +170,15 @@ class GameBase(BaseModel):
     box_json: Optional[Any] = None
     injuries_json: Optional[Any] = None
 
+
 class GameCreate(GameBase):
     pass
+
 
 class GameRead(GameBase):
     id: int
     model_config = ConfigDict(from_attributes=True)
+
 
 class StandingBase(BaseModel):
     season: int
@@ -159,8 +190,10 @@ class StandingBase(BaseModel):
     pa: Optional[int] = 0
     elo: Optional[float] = 1500
 
+
 class StandingCreate(StandingBase):
     pass
+
 
 class StandingRead(StandingBase):
     model_config = ConfigDict(from_attributes=True)

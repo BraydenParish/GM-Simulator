@@ -9,8 +9,10 @@ if os.path.exists(_chart_path):
         for row in csv.DictReader(f):
             _jj_chart[int(row["overall"])] = int(row["value"])
 
+
 def jj_value(pick_overall: int) -> int:
     return _jj_chart.get(pick_overall, 0)
+
 
 def evaluate_trade(assets_a: List[int], assets_b: List[int]) -> Dict[str, int]:
     # assets are pick overalls for MVP
