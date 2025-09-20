@@ -1,23 +1,19 @@
 # PRIMER
 
 ## What
-- Added `OpenRouterClient` to wrap Gemini 2.x Flash on OpenRouter and expose a
-  reusable `generate_game_recap` helper.
-- Created a Madden/PFF blending pipeline (`ratings_loader`) plus seed CSVs for
-  merged player ratings and traits.
-- Implemented a deterministic `SeasonSimulator` that generates a round-robin
-  schedule, records standings, aggregates player stat lines, and requests LLM
-  recaps.
-- Added service-layer tests that exercise the ratings loader, LLM wrapper, and
-  full season simulation orchestration.
+- Hardened the `OpenRouterClient` by defaulting to Gemini 2.5 Flash with a
+  configurable Gemini 2.0 Flash Lite fallback and richer error handling.
+- Added coverage for the retry behaviour alongside the existing narrative
+  payload validation tests.
+- (Previously) Added the ratings blending pipeline and season simulator
+  scaffolding.
 
 ## Why
-- The simulator now has modular entry points for integrating narrative flavour
-  while preserving deterministic outcomes.
-- Blending public Madden and PFF data provides richer baselines for team/unit
-  strength calculations and offseason flows.
-- A season loop with player stat output is the foundation for roster moves,
-  morale systems, and front-office decision modelling.
+- Narrative generation now degrades gracefully when OpenRouter temporarily
+  rejects Gemini 2.5 Flash requests, keeping story output available for recap
+  and negotiation flows.
+- Retained documentation of the ratings blend and season simulator context for
+  continuity.
 
 ## Proof
 - `pytest -q`

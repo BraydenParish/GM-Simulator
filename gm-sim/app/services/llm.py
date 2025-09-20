@@ -13,7 +13,9 @@ from typing import Any, Dict, Optional
 import httpx
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-DEFAULT_MODEL = "google/gemini-2.0-flash-lite-001"
+# Gemini 2.5 Flash is the default narrative model per product guidance.
+DEFAULT_MODEL = "google/gemini-2.5-flash"
+DEFAULT_FALLBACK_MODEL = "google/gemini-2.0-flash-lite-001"
 
 
 class OpenRouterClient:
@@ -24,11 +26,13 @@ class OpenRouterClient:
         api_key: Optional[str] = None,
         *,
         model: str = DEFAULT_MODEL,
+        fallback_model: Optional[str] = DEFAULT_FALLBACK_MODEL,
         base_url: str = OPENROUTER_BASE_URL,
         timeout: float = 30.0,
     ) -> None:
         self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
         self.model = model
+        self.fallback_model = fallback_model if fallback_model != model else None
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 
@@ -70,7 +74,6 @@ class OpenRouterClient:
             headers.update(extra_headers)
 
         payload: Dict[str, Any] = {
-            "model": self.model,
             "temperature": temperature,
             "max_output_tokens": max_output_tokens,
             "messages": [
@@ -79,16 +82,31 @@ class OpenRouterClient:
             ],
         }
 
-        async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
-            response = await client.post("/chat/completions", headers=headers, json=payload)
-            response.raise_for_status()
-            data = response.json()
+        candidate_models = [self.model]
+        if self.fallback_model and self.fallback_model not in candidate_models:
+            candidate_models.append(self.fallback_model)
 
-        try:
-            message = data["choices"][0]["message"]["content"]
-        except (KeyError, IndexError, TypeError) as exc:  # pragma: no cover - defensive
-            raise RuntimeError(f"Unexpected OpenRouter payload: {data}") from exc
-        return message.strip()
+        last_error: Optional[Exception] = None
+        for model in candidate_models:
+            payload["model"] = model
+            try:
+                async with httpx.AsyncClient(
+                    base_url=self.base_url, timeout=self.timeout
+                ) as client:
+                    response = await client.post("/chat/completions", headers=headers, json=payload)
+                    response.raise_for_status()
+                    data = response.json()
+            except httpx.HTTPError as exc:
+                last_error = exc
+                continue
+
+            try:
+                message = data["choices"][0]["message"]["content"]
+            except (KeyError, IndexError, TypeError) as exc:  # pragma: no cover - defensive
+                raise RuntimeError(f"Unexpected OpenRouter payload: {data}") from exc
+            return message.strip()
+
+        raise RuntimeError("OpenRouter request failed for all configured models") from last_error
 
     async def generate_game_recap(self, game_context: Dict[str, Any]) -> str:
         """Produce a concise recap for a simulated game.
