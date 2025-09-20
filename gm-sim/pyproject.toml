@@ -17,6 +17,32 @@ python-dotenv = "^1.0.1"
 pytest = "^8.0.0"
 httpx = "^0.27.0"
 
+[tool.mypy]
+plugins = ["sqlalchemy.ext.mypy.plugin"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["app.*"]
+ignore_errors = true
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F"]
+ignore = ["E501", "E722", "F401", "F541", "F841"]
+
+[tool.ruff.lint.per-file-ignores]
+"test_seed.py" = ["E722", "F401", "F841"]
+"test_simple.py" = ["F401"]
+"test_alternative_scraper.py" = ["F401"]
+"test_fixed_height.py" = ["F401"]
+"test_fixed_nfl.py" = ["F401"]
+"test_nfl_parsing.py" = ["F401"]
+"test_pfr_scraper.py" = ["F401", "F821"]
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
