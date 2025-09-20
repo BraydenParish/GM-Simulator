@@ -1,10 +1,20 @@
 from sqlalchemy import (
-    Column, Integer, String, Float, ForeignKey, DateTime, JSON, PrimaryKeyConstraint
+    Boolean,
+    Column,
+    Integer,
+    String,
+    Float,
+    ForeignKey,
+    DateTime,
+    JSON,
+    PrimaryKeyConstraint,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
 
 Base = declarative_base()
+
 
 class Team(Base):
     __tablename__ = "teams"
@@ -19,6 +29,7 @@ class Team(Base):
     cap_space = Column(Integer, default=0)
     cap_year = Column(Integer, default=2027)
     players = relationship("Player", back_populates="team")
+
 
 class Player(Base):
     __tablename__ = "players"
@@ -62,21 +73,31 @@ class Player(Base):
     purs = Column(Integer)
     team = relationship("Team", back_populates="players")
 
+
 class Contract(Base):
     __tablename__ = "contracts"
     id = Column(Integer, primary_key=True)
-    player_id = Column(Integer, ForeignKey("players.id"))
-    team_id = Column(Integer, ForeignKey("teams.id"))
-    sign_year = Column(Integer)
-    years = Column(Integer)
-    total_value = Column(Integer)
-    guaranteed = Column(Integer)
-    y1_cap = Column(Integer)
-    y1_dead = Column(Integer)
-    y2_cap = Column(Integer)
-    y2_dead = Column(Integer)
-    y3_cap = Column(Integer)
-    y3_dead = Column(Integer)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    start_year = Column(Integer, nullable=False)
+    end_year = Column(Integer, nullable=False)
+    apy = Column(Float, nullable=False)
+    base_salary_yearly = Column(JSON, nullable=False)
+    signing_bonus_total = Column(Integer, nullable=False)
+    guarantees_total = Column(Integer, nullable=False)
+    cap_hits_yearly = Column(JSON, nullable=False)
+    dead_money_yearly = Column(JSON, nullable=False)
+    no_trade = Column(Boolean, default=False)
+    void_years = Column(Integer, default=0)
+
+
+class SalaryCap(Base):
+    __tablename__ = "salary_cap"
+    id = Column(Integer, primary_key=True)
+    league_year = Column(Integer, unique=True, nullable=False)
+    cap_base = Column(Integer, nullable=False)
+    rollover_by_team = Column(JSON, default=dict)
+
 
 class DepthChart(Base):
     __tablename__ = "depth_chart"
@@ -85,6 +106,7 @@ class DepthChart(Base):
     slot = Column(Integer, primary_key=True)
     player_id = Column(Integer, ForeignKey("players.id"))
     snap_pct_plan = Column(Float)
+
 
 class DraftPick(Base):
     __tablename__ = "draft_picks"
@@ -96,6 +118,8 @@ class DraftPick(Base):
     original_team_id = Column(Integer, ForeignKey("teams.id"))
     jj_value = Column(Integer)
     alt_value = Column(Integer)
+    used = Column(Boolean, default=False)
+
 
 class Transaction(Base):
     __tablename__ = "transactions"
@@ -107,6 +131,7 @@ class Transaction(Base):
     payload_json = Column(JSON)
     cap_delta_from = Column(Integer)
     cap_delta_to = Column(Integer)
+
 
 class Game(Base):
     __tablename__ = "games"
@@ -121,6 +146,7 @@ class Game(Base):
     box_json = Column(JSON)
     injuries_json = Column(JSON)
 
+
 class Standing(Base):
     __tablename__ = "standings"
     season = Column(Integer, primary_key=True)
@@ -131,3 +157,69 @@ class Standing(Base):
     pf = Column(Integer, default=0)
     pa = Column(Integer, default=0)
     elo = Column(Float, default=1500)
+
+
+class PracticeSquad(Base):
+    __tablename__ = "practice_squad"
+    id = Column(Integer, primary_key=True)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    international_pathway = Column(Boolean, default=False)
+    elevations = Column(Integer, default=0)
+    ps_ir = Column(Boolean, default=False)
+
+    __table_args__ = (UniqueConstraint("player_id", name="uq_practice_squad_player"),)
+
+
+class GamedayRoster(Base):
+    __tablename__ = "gameday_rosters"
+    id = Column(Integer, primary_key=True)
+    game_id = Column(Integer, ForeignKey("games.id"), nullable=False)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    actives = Column(JSON, nullable=False)
+    inactives = Column(JSON, nullable=False)
+    elevated_player_ids = Column(JSON, default=list)
+    ol_count = Column(Integer, nullable=False)
+    valid = Column(Boolean, default=True)
+
+    __table_args__ = (UniqueConstraint("game_id", "team_id", name="uq_gameday_team"),)
+
+
+class RosterRule(Base):
+    __tablename__ = "roster_rules"
+    id = Column(Integer, primary_key=True)
+    key = Column(String, unique=True, nullable=False)
+    value = Column(JSON, nullable=False)
+
+
+class Injury(Base):
+    __tablename__ = "injuries"
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    game_id = Column(Integer, ForeignKey("games.id"), nullable=False)
+    type = Column(String, nullable=False)
+    severity = Column(String, nullable=False)
+    expected_weeks_out = Column(Integer, nullable=False)
+    occurred_at_play_id = Column(Integer, nullable=True)
+    occurred_at = Column(DateTime, server_default=func.now())
+
+
+class PlayerStamina(Base):
+    __tablename__ = "stamina"
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey("players.id"), unique=True, nullable=False)
+    fatigue = Column(Float, default=0.0)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class FranchiseState(Base):
+    __tablename__ = "franchise_state"
+    id = Column(Integer, primary_key=True, default=1)
+    current_season = Column(Integer, nullable=False)
+    current_week = Column(Integer, nullable=False, default=0)
+    roster_snapshot = Column(JSON, nullable=False, default=dict)
+    free_agents = Column(JSON, nullable=False, default=list)
+    draft_picks_used = Column(JSON, nullable=False, default=list)
+    trades = Column(JSON, nullable=False, default=list)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

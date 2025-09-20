@@ -1,34 +1,43 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
+
 from app.db import get_db
-from app.models import Contract
-from app.schemas import ContractRead, ContractCreate
-from typing import List
+from app.schemas import (
+    ContractCutRequest,
+    ContractCutResponse,
+    ContractRead,
+    ContractSignRequest,
+)
+from app.services.contracts import cut_contract, sign_contract
 
 router = APIRouter(prefix="/contracts", tags=["contracts"])
 
-@router.post("/", response_model=ContractRead)
-async def create_contract(contract_in: ContractCreate, db: AsyncSession = Depends(get_db)):
-    contract = Contract(**contract_in.model_dump())
-    db.add(contract)
-    await db.commit()
-    await db.refresh(contract)
-    return contract
 
-@router.post("/{contract_id}/extend", response_model=ContractRead)
-async def extend_contract(contract_id: int, years: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Contract).where(Contract.id == contract_id))
-    contract = result.scalar_one_or_none()
-    if not contract:
-        raise HTTPException(status_code=404, detail="Contract not found")
-    contract.years += years
-    await db.commit()
-    await db.refresh(contract)
-    return contract
+@router.post(
+    "/sign",
+    response_model=ContractRead,
+    responses={
+        404: {"description": "Player or team not found"},
+        422: {"description": "Cap validation failed"},
+    },
+)
+async def sign_contract_endpoint(
+    payload: ContractSignRequest, db: AsyncSession = Depends(get_db)
+) -> ContractRead:
+    contract = await sign_contract(db, payload)
+    return ContractRead.model_validate(contract)
 
-@router.delete("/{contract_id}")
-async def terminate_contract(contract_id: int, db: AsyncSession = Depends(get_db)):
-    await db.execute(delete(Contract).where(Contract.id == contract_id))
-    await db.commit()
-    return {"ok": True}
+
+@router.post(
+    "/cut",
+    response_model=ContractCutResponse,
+    responses={
+        404: {"description": "Contract or team not found"},
+        422: {"description": "League year outside contract term"},
+    },
+)
+async def cut_contract_endpoint(
+    payload: ContractCutRequest, db: AsyncSession = Depends(get_db)
+) -> ContractCutResponse:
+    result = await cut_contract(db, payload)
+    return ContractCutResponse(**result)

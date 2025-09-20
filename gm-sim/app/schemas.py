@@ -1,5 +1,8 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Optional, List, Any
+import builtins
+from typing import Any, List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
+
 
 class TeamBase(BaseModel):
     name: str
@@ -12,79 +15,154 @@ class TeamBase(BaseModel):
     cap_space: Optional[int] = 0
     cap_year: Optional[int] = 2027
 
+
 class TeamCreate(TeamBase):
     pass
+
 
 class TeamRead(TeamBase):
     id: int
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class PlayerBase(BaseModel):
     name: str
     pos: str
-    team_id: Optional[int] = None
-    age: Optional[int] = None
-    height: Optional[int] = None
-    weight: Optional[int] = None
-    ovr: Optional[int] = None
-    pot: Optional[int] = None
-    spd: Optional[int] = None
-    acc: Optional[int] = None
-    agi: Optional[int] = None
-    str: Optional[int] = None
-    awr: Optional[int] = None
-    injury_status: Optional[str] = "OK"
-    morale: Optional[int] = 50
-    stamina: Optional[int] = 80
-    thp: Optional[int] = None
-    tha_s: Optional[int] = None
-    tha_m: Optional[int] = None
-    tha_d: Optional[int] = None
-    tup: Optional[int] = None
-    rel: Optional[int] = None
-    rr: Optional[int] = None
-    cth: Optional[int] = None
-    cit: Optional[int] = None
-    pbk: Optional[int] = None
-    rbk: Optional[int] = None
-    iblk: Optional[int] = None
-    oblk: Optional[int] = None
-    mcv: Optional[int] = None
-    zcv: Optional[int] = None
-    prs: Optional[int] = None
-    pmv: Optional[int] = None
-    fmv: Optional[int] = None
-    bsh: Optional[int] = None
-    purs: Optional[int] = None
+    team_id: int | None = None
+    age: int | None = None
+    height: int | None = None
+    weight: int | None = None
+    ovr: int | None = None
+    pot: int | None = None
+    spd: int | None = None
+    acc: int | None = None
+    agi: int | None = None
+    str: int | None = None
+    awr: int | None = None
+    injury_status: builtins.str = Field(default="OK")
+    morale: int | None = 50
+    stamina: int | None = 80
+    thp: int | None = None
+    tha_s: int | None = None
+    tha_m: int | None = None
+    tha_d: int | None = None
+    tup: int | None = None
+    rel: int | None = None
+    rr: int | None = None
+    cth: int | None = None
+    cit: int | None = None
+    pbk: int | None = None
+    rbk: int | None = None
+    iblk: int | None = None
+    oblk: int | None = None
+    mcv: int | None = None
+    zcv: int | None = None
+    prs: int | None = None
+    pmv: int | None = None
+    fmv: int | None = None
+    bsh: int | None = None
+    purs: int | None = None
+
 
 class PlayerCreate(PlayerBase):
     pass
+
 
 class PlayerRead(PlayerBase):
     id: int
     model_config = ConfigDict(from_attributes=True)
 
-class ContractBase(BaseModel):
+
+class PlayerListResponse(BaseModel):
+    items: List[PlayerRead]
+    total: int
+    page: int
+    page_size: int
+
+
+class ErrorResponse(BaseModel):
+    detail: str
+
+
+class ContractSignRequest(BaseModel):
     player_id: int
     team_id: int
-    sign_year: int
-    years: int
-    total_value: int
-    guaranteed: int
-    y1_cap: int
-    y1_dead: int
-    y2_cap: Optional[int] = None
-    y2_dead: Optional[int] = None
-    y3_cap: Optional[int] = None
-    y3_dead: Optional[int] = None
+    start_year: int
+    end_year: int
+    base_salary_yearly: dict[int, int]
+    signing_bonus_total: int
+    guarantees_total: int
+    no_trade: bool = False
+    void_years: int = 0
 
-class ContractCreate(ContractBase):
-    pass
+    @field_validator("base_salary_yearly", mode="before")
+    @classmethod
+    def _coerce_int_keys(cls, value: Any) -> dict[int, int]:
+        if isinstance(value, dict):
+            return {int(k): int(v) for k, v in value.items()}
+        raise TypeError("base_salary_yearly must be a mapping of year to salary")
 
-class ContractRead(ContractBase):
+    @field_validator("end_year")
+    @classmethod
+    def _validate_years(cls, end_year: int, info: ValidationInfo) -> int:
+        start_year = info.data.get("start_year")
+        if start_year is not None and end_year < start_year:
+            raise ValueError("end_year must be greater than or equal to start_year")
+        return end_year
+
+    @field_validator("base_salary_yearly")
+    @classmethod
+    def _validate_schedule(cls, schedule: dict[int, int], info: ValidationInfo) -> dict[int, int]:
+        start_year = info.data.get("start_year")
+        end_year = info.data.get("end_year")
+        if start_year is None or end_year is None:
+            return schedule
+        expected_years = set(range(start_year, end_year + 1))
+        if set(schedule) != expected_years:
+            raise ValueError("base_salary_yearly must provide entries for each contract year")
+        return schedule
+
+
+class ContractRead(BaseModel):
     id: int
+    player_id: int
+    team_id: int
+    start_year: int
+    end_year: int
+    apy: float
+    base_salary_yearly: dict[int, int]
+    signing_bonus_total: int
+    guarantees_total: int
+    cap_hits_yearly: dict[int, int]
+    dead_money_yearly: dict[int, int]
+    no_trade: bool = False
+    void_years: int = 0
+
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("base_salary_yearly", "cap_hits_yearly", "dead_money_yearly", mode="before")
+    @classmethod
+    def _coerce_schedule(cls, value: Any) -> dict[int, int]:
+        if isinstance(value, dict):
+            return {int(k): int(v) for k, v in value.items()}
+        return value
+
+
+class ContractCutRequest(BaseModel):
+    contract_id: int
+    league_year: int
+    post_june1: bool = False
+
+
+class ContractCutResponse(BaseModel):
+    contract_id: int
+    league_year: int
+    dead_money_current_year: int
+    dead_money_next_year: int
+    cap_savings: int
+    team_cap_space: int
+
 
 class DepthChartBase(BaseModel):
     team_id: int
@@ -93,11 +171,14 @@ class DepthChartBase(BaseModel):
     player_id: int
     snap_pct_plan: float
 
+
 class DepthChartCreate(DepthChartBase):
     pass
 
+
 class DepthChartRead(DepthChartBase):
     model_config = ConfigDict(from_attributes=True)
+
 
 class DraftPickBase(BaseModel):
     year: int
@@ -108,12 +189,15 @@ class DraftPickBase(BaseModel):
     jj_value: Optional[int] = None
     alt_value: Optional[int] = None
 
+
 class DraftPickCreate(DraftPickBase):
     pass
+
 
 class DraftPickRead(DraftPickBase):
     id: int
     model_config = ConfigDict(from_attributes=True)
+
 
 class TransactionBase(BaseModel):
     type: str
@@ -123,13 +207,16 @@ class TransactionBase(BaseModel):
     cap_delta_from: Optional[int] = None
     cap_delta_to: Optional[int] = None
 
+
 class TransactionCreate(TransactionBase):
     pass
+
 
 class TransactionRead(TransactionBase):
     id: int
     timestamp: Any
     model_config = ConfigDict(from_attributes=True)
+
 
 class GameBase(BaseModel):
     season: int
@@ -142,12 +229,15 @@ class GameBase(BaseModel):
     box_json: Optional[Any] = None
     injuries_json: Optional[Any] = None
 
+
 class GameCreate(GameBase):
     pass
+
 
 class GameRead(GameBase):
     id: int
     model_config = ConfigDict(from_attributes=True)
+
 
 class StandingBase(BaseModel):
     season: int
@@ -159,8 +249,57 @@ class StandingBase(BaseModel):
     pa: Optional[int] = 0
     elo: Optional[float] = 1500
 
+
 class StandingCreate(StandingBase):
     pass
 
+
 class StandingRead(StandingBase):
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PracticeSquadEntryBase(BaseModel):
+    team_id: int
+    player_id: int
+    international_pathway: bool = False
+    ps_ir: bool = False
+
+
+class PracticeSquadAssignRequest(PracticeSquadEntryBase):
+    pass
+
+
+class PracticeSquadEntryRead(PracticeSquadEntryBase):
+    id: int
+    elevations: int = 0
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class GamedayRosterSetRequest(BaseModel):
+    game_id: int
+    team_id: int
+    actives: List[int]
+    inactives: List[int]
+    elevated_player_ids: List[int] = Field(default_factory=list)
+
+
+class GamedayRosterRead(BaseModel):
+    id: int
+    game_id: int
+    team_id: int
+    actives: List[int]
+    inactives: List[int]
+    elevated_player_ids: List[int]
+    ol_count: int
+    valid: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RosterRuleRead(BaseModel):
+    id: int
+    key: str
+    value: Any
+
     model_config = ConfigDict(from_attributes=True)
