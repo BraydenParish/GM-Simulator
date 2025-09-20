@@ -1,15 +1,23 @@
 # PRIMER
 
 ## What
-- Add regression coverage for `GET /players/` and implement a paginated response envelope with filters.
-- Fix async session lifecycle management and serialize ORM entities into `PlayerRead` DTOs.
-- Align the `/players` OpenAPI error example with FastAPI's validation payload and tune dev dependencies/formatting config.
-- Document repository structure and the refreshed players endpoint contract.
+- Added `OpenRouterClient` to wrap Gemini 2.x Flash on OpenRouter and expose a
+  reusable `generate_game_recap` helper.
+- Created a Madden/PFF blending pipeline (`ratings_loader`) plus seed CSVs for
+  merged player ratings and traits.
+- Implemented a deterministic `SeasonSimulator` that generates a round-robin
+  schedule, records standings, aggregates player stat lines, and requests LLM
+  recaps.
+- Added service-layer tests that exercise the ratings loader, LLM wrapper, and
+  full season simulation orchestration.
 
 ## Why
-- `/players/` previously returned a 500 due to improper dependency wiring and response serialization; the new tests guard against regressions.
-- Pagination and filtering are foundational for building higher-level front-end and simulation workflows.
-- Updated documentation keeps future tasks aligned with the evolving API surface area.
+- The simulator now has modular entry points for integrating narrative flavour
+  while preserving deterministic outcomes.
+- Blending public Madden and PFF data provides richer baselines for team/unit
+  strength calculations and offseason flows.
+- A season loop with player stat output is the foundation for roster moves,
+  morale systems, and front-office decision modelling.
 
 ## Proof
 - `pytest -q`

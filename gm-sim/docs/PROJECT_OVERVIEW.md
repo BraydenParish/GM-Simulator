@@ -10,6 +10,8 @@
   - `schemas.py`: Pydantic models shared across routers.
   - `services/`: Domain-specific helpers (e.g., ratings scaffolding).
 - `data/`: Seed CSVs and related assets used to bootstrap the database.
+- `data/ratings/`: Sample Madden 25 and PFF grade extracts that seed the ratings
+  pipeline.
 - `tests/`: Automated test suites. Newly added `tests/api/test_players.py` exercises the player listing API end-to-end.
 - `pytest.ini`: Pytest configuration enabling asyncio tests.
 
@@ -38,5 +40,10 @@ Key SQLAlchemy models:
 - `/players/` 500 regression resolved by returning serialized DTOs and enforcing async session usage.
 - Pagination and filtering implemented on `/players/`, with comprehensive tests covering success paths and validation failures.
 - Async SQLAlchemy session management now uses `async_sessionmaker` to avoid improper generator usage.
+- Added a ratings pipeline (`app/services/ratings_loader.py`) that merges Madden 25
+  overalls with PFF grades and normalises the blended output to a 0-100 scale.
+- Introduced an OpenRouter LLM client and `SeasonSimulator` that stitches together
+  round-robin schedules, probabilistic game sims, player stat tracking, and
+  narrative recaps produced by Gemini 2.x Flash via OpenRouter.
 
 This document should be kept current as new tables, rules, or endpoints are introduced.
