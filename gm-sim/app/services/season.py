@@ -77,6 +77,7 @@ class SeasonSimulator:
         self._player_stats: Dict[int, List[PlayerStatLine]] = {team.id: [] for team in self.teams}
         self._games: List[GameLog] = []
         self.schedule = self._build_schedule()
+        self._total_games = sum(len(week) for week in self.schedule)
 
     def _build_schedule(self) -> List[List[Tuple[int, int]]]:
         ids = [team.id for team in self.teams]
@@ -102,19 +103,33 @@ class SeasonSimulator:
         return schedule
 
     async def simulate_week(self, week_index: int, matchups: List[Tuple[int, int]]) -> None:
-        for home_id, away_id in matchups:
+        total_weeks = len(self.schedule)
+        games_in_week = len(matchups)
+        for matchup_index, (home_id, away_id) in enumerate(matchups, start=1):
             home_team = self._get_team(home_id)
             away_team = self._get_team(away_id)
             seed = self._random.randint(0, 1_000_000)
             result = simulate_game(home_id, away_id, home_team.rating, away_team.rating, seed=seed)
             recap = None
             if self.narrative_client is not None:
+                games_completed = len(self._games)
+                remaining_games = max(self._total_games - games_completed - 1, 0)
+                progress_summary = (
+                    f"Finished {max(week_index - 1, 0)} of {total_weeks} weeks; "
+                    f"currently simulating week {week_index} matchup {matchup_index} of {max(games_in_week, 1)}."
+                )
+                remaining_tasks = (
+                    f"{max(total_weeks - week_index, 0)} weeks remain after this game; "
+                    f"{remaining_games} games left overall."
+                )
                 context = {
                     "teams": {"home": home_team.name, "away": away_team.name},
                     "score": {"home": result["home_score"], "away": result["away_score"]},
                     "headline": result.get("headline", ""),
                     "key_players": result.get("player_stats", {}).get("home", [])
                     + result.get("player_stats", {}).get("away", []),
+                    "progress_summary": progress_summary,
+                    "remaining_tasks": remaining_tasks,
                 }
                 recap = await self.narrative_client.generate_game_recap(context)
             self._record_game(

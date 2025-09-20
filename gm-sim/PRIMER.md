@@ -1,17 +1,18 @@
 # PRIMER
 
 ## What
-- Hardened the `OpenRouterClient` by defaulting to Gemini 2.5 Flash with a
-  configurable Gemini 2.0 Flash Lite fallback and richer error handling.
-- Added coverage for the retry behaviour alongside the existing narrative
-  payload validation tests.
+- Repointed the `OpenRouterClient` to Grok-4-Fast with layered fallbacks to
+  Gemini 2.5 Flash and Gemini 2.0 Flash Lite, plus prompt scaffolding that keeps
+  the model aware of completed work and remaining schedule tasks.
+- Added coverage for the new reasoning + progress prompt fields alongside the
+  existing narrative payload validation tests.
 - (Previously) Added the ratings blending pipeline and season simulator
   scaffolding.
 
 ## Why
-- Narrative generation now degrades gracefully when OpenRouter temporarily
-  rejects Gemini 2.5 Flash requests, keeping story output available for recap
-  and negotiation flows.
+- Grok-4-Fast is now the default free narrative provider; fallbacks ensure
+  flavour text is still produced whenever Grok is throttled and the progress
+  summary keeps long-running simulation context intact.
 - Retained documentation of the ratings blend and season simulator context for
   continuity.
 

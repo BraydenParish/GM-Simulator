@@ -2,7 +2,7 @@ import httpx
 import pytest
 
 from app.services.llm import (
-    DEFAULT_FALLBACK_MODEL,
+    DEFAULT_FALLBACK_MODELS,
     DEFAULT_MODEL,
     OpenRouterClient,
 )
@@ -47,13 +47,24 @@ async def test_openrouter_client_builds_payload(monkeypatch):
     dummy_client = DummyAsyncClient()
     monkeypatch.setattr(httpx, "AsyncClient", lambda *a, **k: dummy_client)
     client = OpenRouterClient(api_key="test-key", model=DEFAULT_MODEL)
-    text = await client.complete("system", "user", temperature=0.2, max_output_tokens=128)
+    text = await client.complete(
+        "system",
+        "user",
+        temperature=0.2,
+        max_output_tokens=128,
+        progress_summary="Seed schedule built",
+        remaining_tasks="Simulate postseason",
+        use_reasoning=True,
+        reasoning_effort="high",
+    )
 
     assert text == "Recap text"
     assert dummy_client.last_json["model"] == DEFAULT_MODEL
     assert dummy_client.last_json["temperature"] == 0.2
     assert dummy_client.last_json["max_output_tokens"] == 128
     assert dummy_client.last_json["messages"][0]["role"] == "system"
+    assert "Progress Update" in dummy_client.last_json["messages"][1]["content"]
+    assert dummy_client.last_json["reasoning"] == {"effort": "high"}
     assert dummy_client.last_headers["Authorization"] == "Bearer test-key"
 
 
@@ -101,14 +112,14 @@ async def test_openrouter_falls_back_to_secondary_model(monkeypatch):
     dummy_client = DummyFailThenSucceedClient()
     monkeypatch.setattr(httpx, "AsyncClient", lambda *a, **k: dummy_client)
     client = OpenRouterClient(
-        api_key="key", model=DEFAULT_MODEL, fallback_model=DEFAULT_FALLBACK_MODEL
+        api_key="key", model=DEFAULT_MODEL, fallback_models=DEFAULT_FALLBACK_MODELS
     )
 
     text = await client.complete("sys", "user")
 
     assert dummy_client.attempts == 2
-    assert dummy_client.last_models == [DEFAULT_MODEL, DEFAULT_FALLBACK_MODEL]
-    assert text == f"response from {DEFAULT_FALLBACK_MODEL}"
+    assert dummy_client.last_models == [DEFAULT_MODEL, DEFAULT_FALLBACK_MODELS[0]]
+    assert text == f"response from {DEFAULT_FALLBACK_MODELS[0]}"
 
 
 class DummyAlwaysFailClient:
@@ -128,7 +139,7 @@ class DummyAlwaysFailClient:
 @pytest.mark.asyncio
 async def test_openrouter_raises_after_all_models_fail(monkeypatch):
     monkeypatch.setattr(httpx, "AsyncClient", lambda *a, **k: DummyAlwaysFailClient())
-    client = OpenRouterClient(api_key="key", model="model-a", fallback_model="model-b")
+    client = OpenRouterClient(api_key="key", model="model-a", fallback_models=["model-b"])
 
     with pytest.raises(RuntimeError) as exc:
         await client.complete("sys", "user")

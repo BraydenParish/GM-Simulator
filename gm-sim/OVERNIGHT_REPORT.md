@@ -1,9 +1,10 @@
 # Overnight Autonomy Report
 
 ## Completed
-- Hardened the OpenRouter-backed narrative client with Gemini 2.5 Flash as the
-  default model and an automatic Gemini 2.0 Flash Lite fallback, plus broader
-  error handling.
+- Repointed the OpenRouter-backed narrative client to Grok-4-Fast with automatic
+  fallbacks to Gemini 2.5 Flash and Gemini 2.0 Flash Lite, added reasoning hooks,
+  and ensured every prompt carries a progress + remaining-tasks summary for
+  continuity.
 - Implemented OpenRouter-backed narrative client and season orchestration
   utilities to simulate round-robin schedules with drive summaries and player
   stat lines.

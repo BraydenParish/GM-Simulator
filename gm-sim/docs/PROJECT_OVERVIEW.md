@@ -44,7 +44,9 @@ Key SQLAlchemy models:
   overalls with PFF grades and normalises the blended output to a 0-100 scale.
 - Introduced an OpenRouter LLM client and `SeasonSimulator` that stitches together
   round-robin schedules, probabilistic game sims, player stat tracking, and
-  narrative recaps produced by Gemini 2.5 Flash via OpenRouter with an automatic
-  fallback to Gemini 2.0 Flash Lite when the primary model is unavailable.
+  narrative recaps produced by Grok-4-Fast via OpenRouter with automatic fallbacks
+  to Gemini 2.5 Flash and Gemini 2.0 Flash Lite whenever Grok is throttled. Each
+  narrative prompt now embeds a quick summary of completed simulation tasks and the
+  remaining schedule to preserve long-horizon context for the model.
 
 This document should be kept current as new tables, rules, or endpoints are introduced.

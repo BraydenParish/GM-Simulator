@@ -8,14 +8,17 @@ outputs produced by the simulator.
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence
 
 import httpx
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-# Gemini 2.5 Flash is the default narrative model per product guidance.
-DEFAULT_MODEL = "google/gemini-2.5-flash"
-DEFAULT_FALLBACK_MODEL = "google/gemini-2.0-flash-lite-001"
+# Grok-4-Fast is the primary narrative model per updated guidance.
+DEFAULT_MODEL = "xai/grok-4-fast"
+DEFAULT_FALLBACK_MODELS: Sequence[str] = (
+    "google/gemini-2.5-flash",
+    "google/gemini-2.0-flash-lite-001",
+)
 
 
 class OpenRouterClient:
@@ -26,13 +29,20 @@ class OpenRouterClient:
         api_key: Optional[str] = None,
         *,
         model: str = DEFAULT_MODEL,
-        fallback_model: Optional[str] = DEFAULT_FALLBACK_MODEL,
+        fallback_models: Optional[Sequence[str]] = None,
         base_url: str = OPENROUTER_BASE_URL,
         timeout: float = 30.0,
     ) -> None:
         self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
         self.model = model
-        self.fallback_model = fallback_model if fallback_model != model else None
+        configured_fallbacks: Sequence[str]
+        if fallback_models is None:
+            configured_fallbacks = DEFAULT_FALLBACK_MODELS
+        else:
+            configured_fallbacks = fallback_models
+        self.fallback_models = [
+            candidate for candidate in configured_fallbacks if candidate and candidate != self.model
+        ]
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 
@@ -44,6 +54,10 @@ class OpenRouterClient:
         temperature: float = 0.7,
         max_output_tokens: int = 512,
         extra_headers: Optional[Dict[str, str]] = None,
+        progress_summary: Optional[str] = None,
+        remaining_tasks: Optional[str] = None,
+        use_reasoning: bool = False,
+        reasoning_effort: str = "medium",
     ) -> str:
         """Call the OpenRouter API and return the response text.
 
@@ -73,18 +87,29 @@ class OpenRouterClient:
         if extra_headers:
             headers.update(extra_headers)
 
+        progress_message = (
+            "Progress Update for Narrative Model:\n"
+            f"- Completed: {progress_summary or 'Not specified'}\n"
+            f"- Remaining: {remaining_tasks or 'Not specified'}"
+        )
+
         payload: Dict[str, Any] = {
             "temperature": temperature,
             "max_output_tokens": max_output_tokens,
             "messages": [
                 {"role": "system", "content": system_prompt},
+                {"role": "system", "content": progress_message},
                 {"role": "user", "content": user_prompt},
             ],
         }
 
+        if use_reasoning:
+            payload["reasoning"] = {"effort": reasoning_effort}
+
         candidate_models = [self.model]
-        if self.fallback_model and self.fallback_model not in candidate_models:
-            candidate_models.append(self.fallback_model)
+        for fallback in self.fallback_models:
+            if fallback not in candidate_models:
+                candidate_models.append(fallback)
 
         last_error: Optional[Exception] = None
         for model in candidate_models:
@@ -136,4 +161,22 @@ class OpenRouterClient:
             f"Key players:\n{key_player_lines or 'N/A'}"
         )
 
-        return await self.complete(system_prompt, user_prompt)
+        progress_summary = game_context.get(
+            "progress_summary",
+            "Game simulation progress not specified",
+        )
+        remaining_tasks = game_context.get(
+            "remaining_tasks",
+            "Remaining schedule details not specified",
+        )
+        use_reasoning = bool(game_context.get("use_reasoning", False))
+        reasoning_effort = str(game_context.get("reasoning_effort", "medium"))
+
+        return await self.complete(
+            system_prompt,
+            user_prompt,
+            progress_summary=progress_summary,
+            remaining_tasks=remaining_tasks,
+            use_reasoning=use_reasoning,
+            reasoning_effort=reasoning_effort,
+        )
