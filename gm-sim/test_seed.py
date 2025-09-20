@@ -10,7 +10,7 @@ import sys
 # Add the current directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-async def test_imports():
+async def check_imports():
     """Test if we can import all the required modules"""
     try:
         print("Testing imports...")
@@ -25,7 +25,7 @@ async def test_imports():
         print(f"❌ Import error: {e}")
         return False
 
-async def test_database_connection():
+async def check_database_connection():
     """Test database connection"""
     try:
         print("Testing database connection...")
@@ -38,7 +38,7 @@ async def test_database_connection():
         print(f"❌ Database connection error: {e}")
         return False
 
-async def test_csv_files():
+async def check_csv_files():
     """Test if CSV files exist and are readable"""
     try:
         print("Testing CSV files...")
@@ -63,15 +63,15 @@ async def main():
     print("=== Testing Seed Script Components ===")
     
     # Test imports
-    if not await test_imports():
+    if not await check_imports():
         return
     
     # Test database connection
-    if not await test_database_connection():
+    if not await check_database_connection():
         return
     
     # Test CSV files
-    if not await test_csv_files():
+    if not await check_csv_files():
         return
     
     print("\n✅ All tests passed! The seed script should work.")

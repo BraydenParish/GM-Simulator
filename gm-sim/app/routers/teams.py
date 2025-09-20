@@ -8,10 +8,12 @@ from typing import List
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 
+
 @router.get("/", response_model=List[TeamRead])
 async def list_teams(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Team))
     return result.scalars().all()
+
 
 @router.get("/{team_id}", response_model=TeamRead)
 async def get_team(team_id: int, db: AsyncSession = Depends(get_db)):
@@ -20,6 +22,7 @@ async def get_team(team_id: int, db: AsyncSession = Depends(get_db)):
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
     return team
+
 
 @router.put("/{team_id}", response_model=TeamRead)
 async def update_team(team_id: int, team_in: TeamCreate, db: AsyncSession = Depends(get_db)):
