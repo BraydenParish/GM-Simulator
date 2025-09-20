@@ -9,6 +9,7 @@ from app.services.trades import evaluate_trade
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
+
 @router.post("/", response_model=TransactionRead)
 async def record_transaction(tx_in: TransactionCreate, db: AsyncSession = Depends(get_db)):
     tx = Transaction(**tx_in.model_dump())
@@ -16,6 +17,7 @@ async def record_transaction(tx_in: TransactionCreate, db: AsyncSession = Depend
     await db.commit()
     await db.refresh(tx)
     return tx
+
 
 @router.post("/evaluate-trade")
 async def evaluate_trade_endpoint(payload: Dict[str, List[int]]):
