@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.models import Player
-from app.schemas import ErrorResponse, PlayerCreate, PlayerListResponse, PlayerRead
+from app.schemas import PlayerCreate, PlayerListResponse, PlayerRead
 
 PLAYER_LIST_EXAMPLE = {
     "items": [
@@ -28,7 +28,17 @@ PLAYER_LIST_EXAMPLE = {
     "page_size": 25,
 }
 
-PLAYER_LIST_ERROR_EXAMPLE = {"detail": "page_size must be between 1 and 100"}
+PLAYER_LIST_ERROR_EXAMPLE = {
+    "detail": [
+        {
+            "type": "less_than_equal",
+            "loc": ["query", "page_size"],
+            "msg": "Input should be less than or equal to 100",
+            "input": 101,
+            "ctx": {"le": 100},
+        }
+    ]
+}
 
 router = APIRouter(prefix="/players", tags=["players"])
 
@@ -44,7 +54,6 @@ router = APIRouter(prefix="/players", tags=["players"])
     responses={
         200: {"content": {"application/json": {"example": PLAYER_LIST_EXAMPLE}}},
         422: {
-            "model": ErrorResponse,
             "description": "Validation error",
             "content": {"application/json": {"example": PLAYER_LIST_ERROR_EXAMPLE}},
         },
@@ -59,9 +68,7 @@ async def list_players(
         description="Number of results per page (maximum 100).",
     ),
     team_id: int | None = Query(None, description="Filter to a specific team id."),
-    position: str | None = Query(
-        None, description="Filter by exact position code (e.g., QB, RB)."
-    ),
+    position: str | None = Query(None, description="Filter by exact position code (e.g., QB, RB)."),
     search: str | None = Query(
         None,
         min_length=1,

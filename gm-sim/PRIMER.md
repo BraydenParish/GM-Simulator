@@ -3,6 +3,7 @@
 ## What
 - Add regression coverage for `GET /players/` and implement a paginated response envelope with filters.
 - Fix async session lifecycle management and serialize ORM entities into `PlayerRead` DTOs.
+- Align the `/players` OpenAPI error example with FastAPI's validation payload and tune dev dependencies/formatting config.
 - Document repository structure and the refreshed players endpoint contract.
 
 ## Why
@@ -11,7 +12,7 @@
 - Updated documentation keeps future tasks aligned with the evolving API surface area.
 
 ## Proof
-- `pytest tests/api/test_players.py -q`
+- `pytest -q`
 - `ruff check .`
 - `black --check .`
 - `mypy app`

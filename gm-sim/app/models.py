@@ -1,10 +1,18 @@
 from sqlalchemy import (
-    Column, Integer, String, Float, ForeignKey, DateTime, JSON, PrimaryKeyConstraint
+    Column,
+    Integer,
+    String,
+    Float,
+    ForeignKey,
+    DateTime,
+    JSON,
+    PrimaryKeyConstraint,
 )
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
 
 Base = declarative_base()
+
 
 class Team(Base):
     __tablename__ = "teams"
@@ -19,6 +27,7 @@ class Team(Base):
     cap_space = Column(Integer, default=0)
     cap_year = Column(Integer, default=2027)
     players = relationship("Player", back_populates="team")
+
 
 class Player(Base):
     __tablename__ = "players"
@@ -62,6 +71,7 @@ class Player(Base):
     purs = Column(Integer)
     team = relationship("Team", back_populates="players")
 
+
 class Contract(Base):
     __tablename__ = "contracts"
     id = Column(Integer, primary_key=True)
@@ -78,6 +88,7 @@ class Contract(Base):
     y3_cap = Column(Integer)
     y3_dead = Column(Integer)
 
+
 class DepthChart(Base):
     __tablename__ = "depth_chart"
     team_id = Column(Integer, ForeignKey("teams.id"), primary_key=True)
@@ -85,6 +96,7 @@ class DepthChart(Base):
     slot = Column(Integer, primary_key=True)
     player_id = Column(Integer, ForeignKey("players.id"))
     snap_pct_plan = Column(Float)
+
 
 class DraftPick(Base):
     __tablename__ = "draft_picks"
@@ -97,6 +109,7 @@ class DraftPick(Base):
     jj_value = Column(Integer)
     alt_value = Column(Integer)
 
+
 class Transaction(Base):
     __tablename__ = "transactions"
     id = Column(Integer, primary_key=True)
@@ -107,6 +120,7 @@ class Transaction(Base):
     payload_json = Column(JSON)
     cap_delta_from = Column(Integer)
     cap_delta_to = Column(Integer)
+
 
 class Game(Base):
     __tablename__ = "games"
@@ -120,6 +134,7 @@ class Game(Base):
     sim_seed = Column(Integer)
     box_json = Column(JSON)
     injuries_json = Column(JSON)
+
 
 class Standing(Base):
     __tablename__ = "standings"

@@ -81,10 +81,6 @@ class PlayerListResponse(BaseModel):
     page_size: int
 
 
-class ErrorResponse(BaseModel):
-    detail: str
-
-
 class ContractBase(BaseModel):
     player_id: int
     team_id: int

@@ -8,10 +8,12 @@ from typing import List
 
 router = APIRouter(prefix="/picks", tags=["picks"])
 
+
 @router.get("/", response_model=List[DraftPickRead])
 async def list_picks(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(DraftPick))
     return result.scalars().all()
+
 
 @router.post("/{pick_id}/transfer", response_model=DraftPickRead)
 async def transfer_pick(pick_id: int, new_team_id: int, db: AsyncSession = Depends(get_db)):

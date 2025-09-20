@@ -81,9 +81,7 @@ async def test_players_list_200(client: AsyncClient, seed_players: None) -> None
 
 
 @pytest.mark.asyncio
-async def test_players_list_with_filters(
-    client: AsyncClient, seed_players: None
-) -> None:
+async def test_players_list_with_filters(client: AsyncClient, seed_players: None) -> None:
     response = await client.get("/players/", params={"position": "QB", "page_size": 1})
 
     assert response.status_code == 200
@@ -123,9 +121,7 @@ async def test_players_list_empty_page(client: AsyncClient, seed_players: None) 
 
 
 @pytest.mark.asyncio
-async def test_players_list_page_size_limit(
-    client: AsyncClient, seed_players: None
-) -> None:
+async def test_players_list_page_size_limit(client: AsyncClient, seed_players: None) -> None:
     response = await client.get("/players/", params={"page_size": 101})
 
     assert response.status_code == 422
