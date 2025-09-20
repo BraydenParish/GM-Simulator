@@ -10,9 +10,14 @@ from typing import Dict
 
 router = APIRouter(prefix="/games", tags=["games"])
 
+
 @router.post("/simulate", response_model=GameRead)
 async def simulate_game_endpoint(
-    home_team_id: int, away_team_id: int, season: int, week: int, db: AsyncSession = Depends(get_db)
+    home_team_id: int,
+    away_team_id: int,
+    season: int,
+    week: int,
+    db: AsyncSession = Depends(get_db),
 ):
     # Get teams
     home_team = (await db.execute(select(Team).where(Team.id == home_team_id))).scalar_one_or_none()
@@ -32,7 +37,7 @@ async def simulate_game_endpoint(
         away_score=sim_result["away_score"],
         sim_seed=None,
         box_json=sim_result["box"],
-        injuries_json=None
+        injuries_json=None,
     )
     db.add(game)
     await db.commit()
@@ -40,11 +45,24 @@ async def simulate_game_endpoint(
     # Update standings (minimal)
     for team, score, opp_score in [
         (home_team, sim_result["home_score"], sim_result["away_score"]),
-        (away_team, sim_result["away_score"], sim_result["home_score"])
+        (away_team, sim_result["away_score"], sim_result["home_score"]),
     ]:
-        standing = (await db.execute(select(Standing).where(Standing.season == season, Standing.team_id == team.id))).scalar_one_or_none()
+        standing = (
+            await db.execute(
+                select(Standing).where(Standing.season == season, Standing.team_id == team.id)
+            )
+        ).scalar_one_or_none()
         if not standing:
-            standing = Standing(season=season, team_id=team.id, wins=0, losses=0, ties=0, pf=0, pa=0, elo=team.elo)
+            standing = Standing(
+                season=season,
+                team_id=team.id,
+                wins=0,
+                losses=0,
+                ties=0,
+                pf=0,
+                pa=0,
+                elo=team.elo,
+            )
             db.add(standing)
         standing.pf += score
         standing.pa += opp_score

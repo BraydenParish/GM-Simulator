@@ -1,0 +1,5 @@
+player_id,name,pos,team_abbr,ovr,speed,acceleration,strength,awareness
+1001,Casey Cannon,QB,KC,92,86,88,78,95
+1002,Roland Rusher,RB,KC,88,92,94,80,88
+1003,Devon Dominator,EDGE,DAL,91,84,87,92,90
+1004,Miles Shutdown,CB,DAL,89,92,91,78,88
