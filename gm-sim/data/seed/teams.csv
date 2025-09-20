@@ -1,0 +1,33 @@
+id,name,abbr,conference,division,scheme_off,scheme_def,cap_space,cap_year,elo
+1,Arizona Cardinals,ARI,NFC,West,West Coast,3-4,20004901,2025,1504
+2,Atlanta Falcons,ATL,NFC,South,West Coast,3-4,6924685,2025,1486
+3,Baltimore Ravens,BAL,AFC,North,Air Coryell,3-4,9181022,2025,1685
+4,Buffalo Bills,BUF,AFC,East,Erhardt-Perkins,4-3,3023097,2025,1636
+5,Carolina Panthers,CAR,NFC,South,West Coast,3-4,17894119,2025,1376
+6,Chicago Bears,CHI,NFC,North,Erhardt-Perkins,4-3,9557262,2025,1463
+7,Cincinnati Bengals,CIN,AFC,North,West Coast,4-3,12438828,2025,1469
+8,Cleveland Browns,CLE,AFC,North,West Coast,4-3,20102065,2025,1386
+9,Dallas Cowboys,DAL,NFC,East,Air Coryell,4-3,31085826,2025,1484
+10,Denver Broncos,DEN,AFC,West,Air Coryell,3-4,14204363,2025,1539
+11,Detroit Lions,DET,NFC,North,Air Coryell,4-3,31161754,2025,1620
+12,Green Bay Packers,GB,NFC,North,West Coast,4-3,5566215,2025,1606
+13,Houston Texans,HOU,AFC,South,West Coast,4-3,8365099,2025,1492
+14,Indianapolis Colts,IND,AFC,South,West Coast,4-3,4972353,2025,1491
+15,Jacksonville Jaguars,JAX,AFC,South,West Coast,4-3,9308354,2025,1472
+16,Kansas City Chiefs,KC,AFC,West,West Coast,4-3,3081766,2025,1576
+17,Las Vegas Raiders,LV,AFC,West,Spread,4-3,8725332,2025,1434
+18,Los Angeles Chargers,LAC,AFC,West,West Coast,3-4,12900638,2025,1560
+19,Los Angeles Rams,LAR,NFC,West,West Coast,3-4,15612770,2025,1564
+20,Miami Dolphins,MIA,AFC,East,West Coast,3-4,3513356,2025,1444
+21,Minnesota Vikings,MIN,NFC,North,West Coast,3-4,15733044,2025,1514
+22,New England Patriots,NE,AFC,East,Erhardt-Perkins,3-4,54041626,2025,1435
+23,New Orleans Saints,NO,NFC,South,Air Coryell,4-3,9230391,2025,1350
+24,New York Giants,NYG,NFC,East,Erhardt-Perkins,3-4,1974844,2025,1393
+25,New York Jets,NYJ,AFC,East,Erhardt-Perkins,4-3,13399112,2025,1386
+26,Philadelphia Eagles,PHI,NFC,East,West Coast,3-4,15545804,2025,1632
+27,Pittsburgh Steelers,PIT,AFC,North,West Coast,3-4,6996098,2025,1489
+28,San Francisco 49ers,SF,NFC,West,West Coast,4-3,26670628,2025,1494
+29,Seattle Seahawks,SEA,NFC,West,West Coast,3-4,22202599,2025,1501
+30,Tampa Bay Buccaneers,TB,NFC,South,West Coast,3-4,20937761,2025,1529
+31,Tennessee Titans,TEN,AFC,South,West Coast,3-4,20009906,2025,1348
+32,Washington Commanders,WAS,NFC,East,Spread,4-3,29296542,2025,1493
