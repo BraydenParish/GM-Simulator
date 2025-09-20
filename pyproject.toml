@@ -3,6 +3,9 @@ name = "gm-sim"
 version = "0.1.0"
 description = "Minimal NFL GM Simulator Backend"
 authors = ["Your Name <you@example.com>"]
+packages = [
+    { include = "app" }
+]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -19,9 +22,15 @@ pandas = "^2.0.0"
 lxml = "^4.9.0"
 httpx = "^0.28.0"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
 pytest-asyncio = "^0.23.0"
+ruff = "^0.5.0"
+black = "^24.4.0"
+mypy = "^1.9.0"
+
+[tool.poetry.extras]
+dev = ["pytest", "pytest-asyncio", "ruff", "black", "mypy"]
 
 [tool.mypy]
 plugins = ["sqlalchemy.ext.mypy.plugin"]
@@ -39,15 +48,6 @@ src = ["app", "tests"]
 [tool.ruff.lint]
 select = ["E", "F"]
 ignore = ["E501", "E722", "F401", "F541", "F841"]
-
-[tool.ruff.lint.per-file-ignores]
-"test_seed.py" = ["E722", "F401", "F841"]
-"test_simple.py" = ["F401"]
-"test_alternative_scraper.py" = ["F401"]
-"test_fixed_height.py" = ["F401"]
-"test_fixed_nfl.py" = ["F401"]
-"test_nfl_parsing.py" = ["F401"]
-"test_pfr_scraper.py" = ["F401", "F821"]
 
 [tool.black]
 line-length = 100

@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+.poetry/
+pytest_cache/
+.mypy_cache/
+.idea/
+.vscode/
+app.db
