@@ -1,9 +1,10 @@
 from pydantic import BaseModel, ConfigDict
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Dict
 
 
 class ErrorResponse(BaseModel):
     detail: Any
+
 
 class TeamBase(BaseModel):
     name: str
@@ -16,13 +17,16 @@ class TeamBase(BaseModel):
     cap_space: Optional[int] = 0
     cap_year: Optional[int] = 2027
 
+
 class TeamCreate(TeamBase):
     pass
+
 
 class TeamRead(TeamBase):
     id: int
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class PlayerBase(BaseModel):
     name: str
@@ -62,8 +66,10 @@ class PlayerBase(BaseModel):
     bsh: Optional[int] = None
     purs: Optional[int] = None
 
+
 class PlayerCreate(PlayerBase):
     pass
+
 
 class PlayerRead(PlayerBase):
     id: int
@@ -130,26 +136,50 @@ class RosterRuleRead(RosterRuleBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-class ContractBase(BaseModel):
+
+class ContractRead(BaseModel):
+    id: int
     player_id: int
     team_id: int
-    sign_year: int
-    years: int
-    total_value: int
-    guaranteed: int
-    y1_cap: int
-    y1_dead: int
-    y2_cap: Optional[int] = None
-    y2_dead: Optional[int] = None
-    y3_cap: Optional[int] = None
-    y3_dead: Optional[int] = None
+    start_year: int
+    end_year: int
+    apy: int
+    base_salary_yearly: Dict[str, int]
+    signing_bonus_total: int
+    guarantees_total: int
+    cap_hits_yearly: Dict[str, int]
+    dead_money_yearly: Dict[str, int]
+    no_trade: bool = False
+    void_years: int = 0
 
-class ContractCreate(ContractBase):
-    pass
-
-class ContractRead(ContractBase):
-    id: int
     model_config = ConfigDict(from_attributes=True)
+
+
+class ContractSignRequest(BaseModel):
+    player_id: int
+    team_id: int
+    start_year: int
+    end_year: int
+    base_salary_yearly: Dict[int, int]
+    signing_bonus_total: int = 0
+    guarantees_total: int = 0
+    no_trade: bool = False
+    void_years: int = 0
+
+
+class ContractCutRequest(BaseModel):
+    player_id: int
+    team_id: int
+    league_year: int
+    post_june1: bool = False
+
+
+class ContractCutResponse(BaseModel):
+    dead_money_current: int
+    dead_money_future: int
+    cap_space: int
+    freed_cap: int
+
 
 class DepthChartBase(BaseModel):
     team_id: int
@@ -158,11 +188,14 @@ class DepthChartBase(BaseModel):
     player_id: int
     snap_pct_plan: float
 
+
 class DepthChartCreate(DepthChartBase):
     pass
 
+
 class DepthChartRead(DepthChartBase):
     model_config = ConfigDict(from_attributes=True)
+
 
 class DraftPickBase(BaseModel):
     year: int
@@ -173,12 +206,15 @@ class DraftPickBase(BaseModel):
     jj_value: Optional[int] = None
     alt_value: Optional[int] = None
 
+
 class DraftPickCreate(DraftPickBase):
     pass
+
 
 class DraftPickRead(DraftPickBase):
     id: int
     model_config = ConfigDict(from_attributes=True)
+
 
 class TransactionBase(BaseModel):
     type: str
@@ -188,13 +224,16 @@ class TransactionBase(BaseModel):
     cap_delta_from: Optional[int] = None
     cap_delta_to: Optional[int] = None
 
+
 class TransactionCreate(TransactionBase):
     pass
+
 
 class TransactionRead(TransactionBase):
     id: int
     timestamp: Any
     model_config = ConfigDict(from_attributes=True)
+
 
 class GameBase(BaseModel):
     season: int
@@ -207,12 +246,15 @@ class GameBase(BaseModel):
     box_json: Optional[Any] = None
     injuries_json: Optional[Any] = None
 
+
 class GameCreate(GameBase):
     pass
+
 
 class GameRead(GameBase):
     id: int
     model_config = ConfigDict(from_attributes=True)
+
 
 class StandingBase(BaseModel):
     season: int
@@ -224,8 +266,10 @@ class StandingBase(BaseModel):
     pa: Optional[int] = 0
     elo: Optional[float] = 1500
 
+
 class StandingCreate(StandingBase):
     pass
+
 
 class StandingRead(StandingBase):
     model_config = ConfigDict(from_attributes=True)
