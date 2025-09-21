@@ -309,6 +309,7 @@ def simulate_game(
     away_pts = int(exp_pts * (1 - prob) + random.gauss(0, 3))
 
     player_stats: List[Dict[str, object]] = []
+    team_totals: Dict[int, Dict[str, int]] = {}
     for team_id, roster in (
         (home_team_id, home_roster or []),
         (away_team_id, away_roster or []),
@@ -322,9 +323,18 @@ def simulate_game(
                     "stats": stat_line,
                 }
             )
+            team_line = team_totals.setdefault(team_id, {})
+            for key, value in stat_line.items():
+                team_line[key] = team_line.get(key, 0) + value
+
+    team_totals_payload = [
+        {"team_id": team_id, "stats": stat_line}
+        for team_id, stat_line in sorted(team_totals.items())
+    ]
 
     box = {
         "player_stats": player_stats,
+        "team_totals": team_totals_payload,
     }
     return {
         "home_score": home_pts,
@@ -332,4 +342,5 @@ def simulate_game(
         "win_prob": prob,
         "box": box,
         "player_stats": player_stats,
+        "team_totals": team_totals,
     }

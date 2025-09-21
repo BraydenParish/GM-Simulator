@@ -14,7 +14,14 @@ sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from app.db import get_db
 from app.main import app
-from app.models import Base, Player, PlayerSeasonStat, Team, TeamSeasonStat
+from app.models import (
+    Base,
+    Player,
+    PlayerSeasonStat,
+    Team,
+    TeamGameStat,
+    TeamSeasonStat,
+)
 
 
 @pytest.fixture
@@ -122,6 +129,13 @@ async def test_simulation_creates_player_stats(client: AsyncClient):
     game_payload = response.json()
     assert game_payload["box_json"]["player_stats"]
 
+    totals = _totals_by_team(game_payload)
+    stored_totals = {
+        entry["team_id"]: entry["stats"]
+        for entry in game_payload["box_json"].get("team_totals", [])
+    }
+    assert stored_totals == totals
+
     game_stats_response = await client.get(
         "/stats/players/game", params={"game_id": game_payload["id"]}
     )
@@ -164,6 +178,24 @@ async def test_simulation_creates_player_stats(client: AsyncClient):
         "/stats/players/game", params={"game_id": game_payload["id"], "team_id": 1}
     )
     assert all(entry["team_id"] == 1 for entry in alpha_only.json())
+
+    team_game_response = await client.get(
+        "/stats/teams/game", params={"game_id": game_payload["id"]}
+    )
+    assert team_game_response.status_code == 200
+    team_game_payload = team_game_response.json()
+    team_game_index = {entry["team_id"]: entry["stats"] for entry in team_game_payload}
+    assert team_game_index == totals
+
+    filtered_team_game = await client.get(
+        "/stats/teams/game",
+        params={"game_id": game_payload["id"], "team_id": 1},
+    )
+    assert filtered_team_game.status_code == 200
+    filtered_payload = filtered_team_game.json()
+    assert len(filtered_payload) == 1
+    assert filtered_payload[0]["team_id"] == 1
+    assert filtered_payload[0]["stats"] == totals[1]
 
 
 @pytest.mark.asyncio
@@ -289,6 +321,12 @@ async def test_team_season_stats_aggregate(client: AsyncClient, test_db):
         assert entry["games_played"] == 2
         assert entry["stats"] == expected
 
+    team_game_entries = await client.get(
+        "/stats/teams/game", params={"game_id": first.json()["id"]}
+    )
+    assert team_game_entries.status_code == 200
+    assert len(team_game_entries.json()) == 2
+
     filtered = await client.get(
         "/stats/teams/season", params={"season": 2028, "team_id": 1}
     )
@@ -308,3 +346,10 @@ async def test_team_season_stats_aggregate(client: AsyncClient, test_db):
             )
         ).scalar_one()
         assert record.games_played == 2
+
+        game_records = (
+            await session.execute(
+                select(TeamGameStat).where(TeamGameStat.game_id == first.json()["id"])
+            )
+        ).scalars()
+        assert len(list(game_records)) == 2

@@ -10,6 +10,7 @@ from app.models import (
     Player,
     PlayerGameStat,
     PlayerSeasonStat,
+    TeamGameStat,
     TeamSeasonStat,
     Standing,
     Team,
@@ -120,6 +121,25 @@ async def simulate_game_endpoint(
         team_line = team_totals.setdefault(team_id, {})
         for key, value in stats_payload.items():
             team_line[key] = team_line.get(key, 0) + value
+
+    team_totals_payload = [
+        {"team_id": team_id, "stats": totals}
+        for team_id, totals in sorted(team_totals.items())
+    ]
+
+    game.box_json = game.box_json or {}
+    game.box_json["team_totals"] = team_totals_payload
+
+    for team_id, totals in team_totals.items():
+        db.add(
+            TeamGameStat(
+                game_id=game.id,
+                team_id=team_id,
+                season=season,
+                week=week,
+                stats=totals,
+            )
+        )
 
     for team_id, totals in team_totals.items():
         team_season_stat = (

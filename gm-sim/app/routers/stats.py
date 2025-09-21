@@ -5,10 +5,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
-from app.models import PlayerGameStat, PlayerSeasonStat, TeamSeasonStat
+from app.models import (
+    PlayerGameStat,
+    PlayerSeasonStat,
+    TeamGameStat,
+    TeamSeasonStat,
+)
 from app.schemas import (
     PlayerGameStatRead,
     PlayerSeasonStatRead,
+    TeamGameStatRead,
     TeamSeasonStatRead,
 )
 
@@ -25,6 +31,19 @@ async def list_player_game_stats(
     if team_id is not None:
         query = query.where(PlayerGameStat.team_id == team_id)
     result = await db.execute(query.order_by(PlayerGameStat.id))
+    return result.scalars().all()
+
+
+@router.get("/teams/game", response_model=List[TeamGameStatRead])
+async def list_team_game_stats(
+    game_id: int,
+    team_id: Optional[int] = None,
+    db: AsyncSession = Depends(get_db),
+) -> List[TeamGameStatRead]:
+    query = select(TeamGameStat).where(TeamGameStat.game_id == game_id)
+    if team_id is not None:
+        query = query.where(TeamGameStat.team_id == team_id)
+    result = await db.execute(query.order_by(TeamGameStat.team_id))
     return result.scalars().all()
 
 
