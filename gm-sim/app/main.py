@@ -8,6 +8,7 @@ from app.routers import (
     picks,
     players,
     roster,
+    stats,
     standings,
     teams,
     transactions,
@@ -32,6 +33,7 @@ app.include_router(transactions.router)
 app.include_router(games.router)
 app.include_router(standings.router)
 app.include_router(roster.router)
+app.include_router(stats.router)
 
 @app.get("/healthz")
 def healthz():

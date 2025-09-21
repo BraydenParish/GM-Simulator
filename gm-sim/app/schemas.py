@@ -256,6 +256,29 @@ class GameRead(GameBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class PlayerGameStatRead(BaseModel):
+    id: int
+    game_id: int
+    player_id: int
+    team_id: int
+    season: int
+    week: int
+    stats: Dict[str, int]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PlayerSeasonStatRead(BaseModel):
+    id: int
+    season: int
+    player_id: int
+    team_id: int
+    games_played: int
+    stats: Dict[str, int]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class StandingBase(BaseModel):
     season: int
     team_id: int

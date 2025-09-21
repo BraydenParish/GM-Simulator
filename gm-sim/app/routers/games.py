@@ -1,28 +1,65 @@
+from typing import Dict, List
+
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.db import get_db
-from app.models import Game, Standing, Team
+from app.models import (
+    Game,
+    Player,
+    PlayerGameStat,
+    PlayerSeasonStat,
+    Standing,
+    Team,
+)
 from app.schemas import GameRead
 from app.services.sim import simulate_game
-from app.services.ratings import compute_team_rating
-from typing import Dict
 
 router = APIRouter(prefix="/games", tags=["games"])
 
+
 @router.post("/simulate", response_model=GameRead)
 async def simulate_game_endpoint(
-    home_team_id: int, away_team_id: int, season: int, week: int, db: AsyncSession = Depends(get_db)
+    home_team_id: int,
+    away_team_id: int,
+    season: int,
+    week: int,
+    sim_seed: int | None = None,
+    db: AsyncSession = Depends(get_db),
 ):
     # Get teams
-    home_team = (await db.execute(select(Team).where(Team.id == home_team_id))).scalar_one_or_none()
-    away_team = (await db.execute(select(Team).where(Team.id == away_team_id))).scalar_one_or_none()
+    home_team = (
+        await db.execute(select(Team).where(Team.id == home_team_id))
+    ).scalar_one_or_none()
+    away_team = (
+        await db.execute(select(Team).where(Team.id == away_team_id))
+    ).scalar_one_or_none()
     if not home_team or not away_team:
         raise HTTPException(status_code=404, detail="Team not found")
-    # For MVP, use team elo as rating
     home_rating = home_team.elo
     away_rating = away_team.elo
-    sim_result = simulate_game(home_team_id, away_team_id, home_rating, away_rating)
+
+    home_roster: List[Player] = (
+        (await db.execute(select(Player).where(Player.team_id == home_team_id)))
+        .scalars()
+        .all()
+    )
+    away_roster: List[Player] = (
+        (await db.execute(select(Player).where(Player.team_id == away_team_id)))
+        .scalars()
+        .all()
+    )
+
+    sim_result = simulate_game(
+        home_team_id,
+        away_team_id,
+        home_rating,
+        away_rating,
+        seed=sim_seed,
+        home_roster=home_roster,
+        away_roster=away_roster,
+    )
     game = Game(
         season=season,
         week=week,
@@ -30,21 +67,78 @@ async def simulate_game_endpoint(
         away_team_id=away_team_id,
         home_score=sim_result["home_score"],
         away_score=sim_result["away_score"],
-        sim_seed=None,
+        sim_seed=sim_seed,
         box_json=sim_result["box"],
-        injuries_json=None
+        injuries_json=None,
     )
     db.add(game)
+    await db.flush()
+
+    for stat in sim_result.get("player_stats", []):
+        player_id = stat["player_id"]
+        team_id = stat["team_id"]
+        stats_payload: Dict[str, int] = stat["stats"]
+
+        game_stat = PlayerGameStat(
+            game_id=game.id,
+            player_id=player_id,
+            team_id=team_id,
+            season=season,
+            week=week,
+            stats=stats_payload,
+        )
+        db.add(game_stat)
+
+        season_stat = (
+            await db.execute(
+                select(PlayerSeasonStat).where(
+                    PlayerSeasonStat.season == season,
+                    PlayerSeasonStat.player_id == player_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if not season_stat:
+            season_stat = PlayerSeasonStat(
+                season=season,
+                player_id=player_id,
+                team_id=team_id,
+                games_played=0,
+                stats={key: 0 for key in stats_payload},
+            )
+            db.add(season_stat)
+        else:
+            season_stat.team_id = team_id
+        season_stat.games_played += 1
+        merged_stats = dict(season_stat.stats)
+        for key, value in stats_payload.items():
+            merged_stats[key] = merged_stats.get(key, 0) + value
+        season_stat.stats = merged_stats
+
     await db.commit()
     await db.refresh(game)
     # Update standings (minimal)
     for team, score, opp_score in [
         (home_team, sim_result["home_score"], sim_result["away_score"]),
-        (away_team, sim_result["away_score"], sim_result["home_score"])
+        (away_team, sim_result["away_score"], sim_result["home_score"]),
     ]:
-        standing = (await db.execute(select(Standing).where(Standing.season == season, Standing.team_id == team.id))).scalar_one_or_none()
+        standing = (
+            await db.execute(
+                select(Standing).where(
+                    Standing.season == season, Standing.team_id == team.id
+                )
+            )
+        ).scalar_one_or_none()
         if not standing:
-            standing = Standing(season=season, team_id=team.id, wins=0, losses=0, ties=0, pf=0, pa=0, elo=team.elo)
+            standing = Standing(
+                season=season,
+                team_id=team.id,
+                wins=0,
+                losses=0,
+                ties=0,
+                pf=0,
+                pa=0,
+                elo=team.elo,
+            )
             db.add(standing)
         standing.pf += score
         standing.pa += opp_score

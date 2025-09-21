@@ -188,3 +188,34 @@ class SalaryCap(Base):
     league_year = Column(Integer, unique=True, nullable=False)
     cap_base = Column(Integer, nullable=False)
     rollover_by_team = Column(JSON, default=dict, nullable=False)
+
+
+class PlayerGameStat(Base):
+    __tablename__ = "player_game_stats"
+
+    id = Column(Integer, primary_key=True)
+    game_id = Column(Integer, ForeignKey("games.id"), nullable=False)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    season = Column(Integer, nullable=False)
+    week = Column(Integer, nullable=False)
+    stats = Column(JSON, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("game_id", "player_id", name="uq_stats_game_player"),
+    )
+
+
+class PlayerSeasonStat(Base):
+    __tablename__ = "player_season_stats"
+
+    id = Column(Integer, primary_key=True)
+    season = Column(Integer, nullable=False)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    games_played = Column(Integer, default=0, nullable=False)
+    stats = Column(JSON, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("season", "player_id", name="uq_stats_season_player"),
+    )
