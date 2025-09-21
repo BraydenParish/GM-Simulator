@@ -49,6 +49,12 @@ class Player(Base):
     injury_status = Column(String, default="OK")
     morale = Column(Integer, default=50)
     stamina = Column(Integer, default=80)
+    pbp_rating = Column(Float)
+    madden_rating = Column(Float)
+    pff_grade = Column(Float)
+    blended_rating = Column(Float)
+    rating_confidence = Column(Float)
+    rating_components = Column(JSON, default=dict)
     # Positional skills
     thp = Column(Integer)
     tha_s = Column(Integer)

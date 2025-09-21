@@ -45,6 +45,12 @@ class PlayerBase(BaseModel):
     injury_status: str = "OK"
     morale: Optional[int] = 50
     stamina: Optional[int] = 80
+    pbp_rating: Optional[float] = None
+    madden_rating: Optional[float] = None
+    pff_grade: Optional[float] = None
+    blended_rating: Optional[float] = None
+    rating_confidence: Optional[float] = None
+    rating_components: Optional[Dict[str, Dict[str, float]]] = None
     thp: Optional[int] = None
     tha_s: Optional[int] = None
     tha_m: Optional[int] = None
