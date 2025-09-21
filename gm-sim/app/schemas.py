@@ -77,6 +77,59 @@ class PlayerListResponse(BaseModel):
     page: int
     page_size: int
 
+
+class PracticeSquadBase(BaseModel):
+    team_id: int
+    player_id: int
+    international_pathway: bool = False
+    elevations: int = 0
+    ps_ir: bool = False
+
+
+class PracticeSquadRead(PracticeSquadBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PracticeSquadAssignRequest(BaseModel):
+    team_id: int
+    player_id: int
+    international_pathway: bool = False
+    ps_ir: bool = False
+
+
+class GamedaySetActivesRequest(BaseModel):
+    game_id: int
+    team_id: int
+    actives: List[int]
+    inactives: List[int]
+    elevated_player_ids: List[int] = []
+
+
+class GamedayRosterRead(BaseModel):
+    id: int
+    game_id: int
+    team_id: int
+    actives: List[int]
+    inactives: List[int]
+    elevated_player_ids: List[int]
+    ol_count: int
+    valid: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RosterRuleBase(BaseModel):
+    key: str
+    value: int
+
+
+class RosterRuleRead(RosterRuleBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
 class ContractBase(BaseModel):
     player_id: int
     team_id: int

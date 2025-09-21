@@ -1,5 +1,13 @@
 from sqlalchemy import (
-    Column, Integer, String, Float, ForeignKey, DateTime, JSON, PrimaryKeyConstraint
+    Boolean,
+    Column,
+    Integer,
+    String,
+    Float,
+    ForeignKey,
+    DateTime,
+    JSON,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
@@ -131,3 +139,36 @@ class Standing(Base):
     pf = Column(Integer, default=0)
     pa = Column(Integer, default=0)
     elo = Column(Float, default=1500)
+
+
+class PracticeSquad(Base):
+    __tablename__ = "practice_squad"
+    id = Column(Integer, primary_key=True)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False, unique=True)
+    international_pathway = Column(Boolean, default=False, nullable=False)
+    elevations = Column(Integer, default=0, nullable=False)
+    ps_ir = Column(Boolean, default=False, nullable=False)
+
+
+class GamedayRoster(Base):
+    __tablename__ = "gameday_rosters"
+    id = Column(Integer, primary_key=True)
+    game_id = Column(Integer, ForeignKey("games.id"), nullable=False)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    actives = Column(JSON, nullable=False)
+    inactives = Column(JSON, nullable=False)
+    elevated_player_ids = Column(JSON, nullable=False, default=list)
+    ol_count = Column(Integer, nullable=False)
+    valid = Column(Boolean, default=False, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("game_id", "team_id", name="uq_gameday_team_game"),
+    )
+
+
+class RosterRule(Base):
+    __tablename__ = "roster_rules"
+    id = Column(Integer, primary_key=True)
+    key = Column(String, unique=True, nullable=False)
+    value = Column(Integer, nullable=False)
