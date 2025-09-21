@@ -46,6 +46,9 @@ async def test_db():
                 Player(id=106, name="Benny Burst", pos="RB", team_id=1, ovr=79),
                 Player(id=107, name="Slot Sam", pos="WR", team_id=1, ovr=81),
                 Player(id=108, name="Line Leo", pos="LB", team_id=1, ovr=77),
+                Player(id=109, name="Kick Kelly", pos="K", team_id=1, ovr=74),
+                Player(id=110, name="Punt Paul", pos="P", team_id=1, ovr=73),
+                Player(id=111, name="Nick Nickel", pos="CB", team_id=1, ovr=79),
                 Player(id=201, name="Quinn Quick", pos="QB", team_id=2, ovr=89),
                 Player(id=202, name="Baker Burst", pos="RB", team_id=2, ovr=83),
                 Player(id=203, name="Cal Catch", pos="WR", team_id=2, ovr=87),
@@ -54,6 +57,9 @@ async def test_db():
                 Player(id=206, name="Ricky Relief", pos="RB", team_id=2, ovr=78),
                 Player(id=207, name="Zed Zoom", pos="WR", team_id=2, ovr=82),
                 Player(id=208, name="Mike Mike", pos="LB", team_id=2, ovr=76),
+                Player(id=209, name="Keen Kick", pos="K", team_id=2, ovr=74),
+                Player(id=210, name="Punt Pete", pos="P", team_id=2, ovr=72),
+                Player(id=211, name="Cover Carl", pos="CB", team_id=2, ovr=78),
             ]
         )
         await session.commit()
@@ -128,6 +134,31 @@ async def test_simulation_creates_player_stats(client: AsyncClient):
     assert indexed_sim.keys() == indexed_db.keys()
     for key in indexed_sim:
         assert indexed_sim[key] == indexed_db[key]
+
+    qb_stats = indexed_sim[(101, 1)]
+    assert qb_stats["passing_attempts"] >= qb_stats["passing_completions"] > 0
+    assert qb_stats["passing_yards"] >= 180
+    assert qb_stats["rushing_attempts"] >= 2
+
+    kicker_stats = indexed_sim[(109, 1)]
+    assert (
+        kicker_stats["field_goals_attempted"] >= kicker_stats["field_goals_made"] >= 0
+    )
+    assert (
+        kicker_stats["extra_points_attempted"] >= kicker_stats["extra_points_made"] >= 0
+    )
+
+    defender_stats = indexed_sim[(104, 1)]
+    assert defender_stats["tackles"] >= 0
+    assert "tackles_for_loss" in defender_stats
+
+    punter_stats = indexed_sim[(110, 1)]
+    assert punter_stats["punt_yards"] >= punter_stats["punts"] * 35
+
+    assert any(
+        entry["stats"].get("kick_return_yards", 0) > 0
+        for entry in game_payload["box_json"]["player_stats"]
+    )
 
     alpha_only = await client.get(
         "/stats/players/game", params={"game_id": game_payload["id"], "team_id": 1}
