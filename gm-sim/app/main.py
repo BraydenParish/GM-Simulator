@@ -11,6 +11,11 @@ from app.routers import (
     games,
     standings,
     roster,
+    seasons,
+    draft,
+    development,
+    trades,
+    franchise,
 )
 
 app = FastAPI(title="GM Simulator", version="0.1.0")
@@ -32,6 +37,11 @@ app.include_router(transactions.router)
 app.include_router(games.router)
 app.include_router(standings.router)
 app.include_router(roster.router)
+app.include_router(seasons.router)
+app.include_router(draft.router)
+app.include_router(development.router)
+app.include_router(trades.router)
+app.include_router(franchise.router)
 
 
 @app.get("/healthz")

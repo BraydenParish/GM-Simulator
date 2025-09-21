@@ -145,6 +145,8 @@ class Game(Base):
     sim_seed = Column(Integer)
     box_json = Column(JSON)
     injuries_json = Column(JSON)
+    narrative_recap = Column(String)
+    narrative_facts = Column(JSON)
 
 
 class Standing(Base):
@@ -157,6 +159,16 @@ class Standing(Base):
     pf = Column(Integer, default=0)
     pa = Column(Integer, default=0)
     elo = Column(Float, default=1500)
+
+
+class Schedule(Base):
+    __tablename__ = "schedule"
+    id = Column(Integer, primary_key=True)
+    season = Column(Integer, nullable=False)
+    week = Column(Integer, nullable=False)
+    home_team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    away_team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    game_time = Column(DateTime)
 
 
 class PracticeSquad(Base):

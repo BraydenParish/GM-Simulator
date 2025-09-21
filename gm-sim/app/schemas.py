@@ -228,6 +228,8 @@ class GameBase(BaseModel):
     sim_seed: Optional[int] = None
     box_json: Optional[Any] = None
     injuries_json: Optional[Any] = None
+    narrative_recap: Optional[str] = None
+    narrative_facts: Optional[Any] = None
 
 
 class GameCreate(GameBase):
