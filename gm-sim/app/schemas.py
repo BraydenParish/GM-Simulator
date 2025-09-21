@@ -1,6 +1,10 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional, List, Any
 
+
+class ErrorResponse(BaseModel):
+    detail: Any
+
 class TeamBase(BaseModel):
     name: str
     abbr: str
@@ -34,7 +38,7 @@ class PlayerBase(BaseModel):
     agi: Optional[int] = None
     str: Optional[int] = None
     awr: Optional[int] = None
-    injury_status: Optional[str] = "OK"
+    injury_status: str = "OK"
     morale: Optional[int] = 50
     stamina: Optional[int] = 80
     thp: Optional[int] = None
@@ -63,7 +67,15 @@ class PlayerCreate(PlayerBase):
 
 class PlayerRead(PlayerBase):
     id: int
+    injury_status: str = "OK"
     model_config = ConfigDict(from_attributes=True)
+
+
+class PlayerListResponse(BaseModel):
+    items: List[PlayerRead]
+    total: int
+    page: int
+    page_size: int
 
 class ContractBase(BaseModel):
     player_id: int

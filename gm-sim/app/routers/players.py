@@ -1,17 +1,74 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+
 from app.db import get_db
 from app.models import Player
-from app.schemas import PlayerRead, PlayerCreate
-from typing import List
+from app.schemas import (
+    ErrorResponse,
+    PlayerCreate,
+    PlayerListResponse,
+    PlayerRead,
+)
 
 router = APIRouter(prefix="/players", tags=["players"])
 
-@router.get("/", response_model=List[PlayerRead])
-async def list_players(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Player))
-    return result.scalars().all()
+@router.get(
+    "/",
+    response_model=PlayerListResponse,
+    responses={422: {"model": ErrorResponse}},
+)
+async def list_players(
+    page: int = Query(1, ge=1, description="Page number (1-indexed)."),
+    page_size: int = Query(
+        25,
+        ge=1,
+        le=100,
+        description="Number of players per page (max 100).",
+    ),
+    team_id: Optional[int] = Query(
+        default=None, description="Filter players by current team ID."
+    ),
+    position: Optional[str] = Query(
+        default=None, description="Filter players by position code."
+    ),
+    search: Optional[str] = Query(
+        default=None,
+        description="Case-insensitive search on player name substrings.",
+    ),
+    db: AsyncSession = Depends(get_db),
+):
+    filters = []
+    if team_id is not None:
+        filters.append(Player.team_id == team_id)
+    if position:
+        filters.append(func.lower(Player.pos) == position.lower())
+    if search:
+        filters.append(func.lower(Player.name).like(f"%{search.lower()}%"))
+
+    query = select(Player).order_by(Player.id)
+    if filters:
+        query = query.where(*filters)
+
+    total_query = select(func.count(Player.id))
+    if filters:
+        total_query = total_query.where(*filters)
+
+    total_result = await db.execute(total_query)
+    total = total_result.scalar_one()
+
+    offset = (page - 1) * page_size
+    result = await db.execute(query.offset(offset).limit(page_size))
+    players = [PlayerRead.model_validate(player) for player in result.scalars().all()]
+
+    return PlayerListResponse(
+        items=players,
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
 
 @router.get("/{player_id}", response_model=PlayerRead)
 async def get_player(player_id: int, db: AsyncSession = Depends(get_db)):
