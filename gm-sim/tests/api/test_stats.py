@@ -42,10 +42,18 @@ async def test_db():
                 Player(id=102, name="Riley Rush", pos="RB", team_id=1, ovr=85),
                 Player(id=103, name="Will Wing", pos="WR", team_id=1, ovr=88),
                 Player(id=104, name="Edge Enzo", pos="EDGE", team_id=1, ovr=80),
+                Player(id=105, name="Terry Tight", pos="TE", team_id=1, ovr=83),
+                Player(id=106, name="Benny Burst", pos="RB", team_id=1, ovr=79),
+                Player(id=107, name="Slot Sam", pos="WR", team_id=1, ovr=81),
+                Player(id=108, name="Line Leo", pos="LB", team_id=1, ovr=77),
                 Player(id=201, name="Quinn Quick", pos="QB", team_id=2, ovr=89),
                 Player(id=202, name="Baker Burst", pos="RB", team_id=2, ovr=83),
                 Player(id=203, name="Cal Catch", pos="WR", team_id=2, ovr=87),
                 Player(id=204, name="Dax Drive", pos="DE", team_id=2, ovr=81),
+                Player(id=205, name="Tanner Tight", pos="TE", team_id=2, ovr=84),
+                Player(id=206, name="Ricky Relief", pos="RB", team_id=2, ovr=78),
+                Player(id=207, name="Zed Zoom", pos="WR", team_id=2, ovr=82),
+                Player(id=208, name="Mike Mike", pos="LB", team_id=2, ovr=76),
             ]
         )
         await session.commit()
@@ -125,6 +133,29 @@ async def test_simulation_creates_player_stats(client: AsyncClient):
         "/stats/players/game", params={"game_id": game_payload["id"], "team_id": 1}
     )
     assert all(entry["team_id"] == 1 for entry in alpha_only.json())
+
+
+@pytest.mark.asyncio
+async def test_simulation_spreads_stats_across_depth_chart(client: AsyncClient):
+    response = await client.post(
+        "/games/simulate",
+        params={
+            "home_team_id": 1,
+            "away_team_id": 2,
+            "season": 2027,
+            "week": 2,
+            "sim_seed": 11,
+        },
+    )
+    assert response.status_code == 200
+    stats_payload = response.json()["box_json"]["player_stats"]
+
+    players_by_team: Dict[int, set[int]] = {1: set(), 2: set()}
+    for entry in stats_payload:
+        players_by_team.setdefault(entry["team_id"], set()).add(entry["player_id"])
+
+    assert len(players_by_team[1]) >= 4
+    assert len(players_by_team[2]) >= 4
 
 
 @pytest.mark.asyncio

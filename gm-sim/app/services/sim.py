@@ -27,12 +27,44 @@ def _pos_match(player: Player | None, positions: Sequence[str]) -> bool:
     return player.pos.upper() in {pos.upper() for pos in positions}
 
 
-def _select_player(roster: Iterable[Player], positions: Sequence[str]) -> Player | None:
+def _select_players(
+    roster: Iterable[Player], positions: Sequence[str], limit: int
+) -> List[Player]:
+    """Select players for a role with positional fallbacks.
+
+    The simulator prefers players who match the requested positions, but when a
+    roster is thin (common with test data or early franchise states) we fall
+    back to the best remaining players so every team still records a full stat
+    line.  The returned list is ordered from highest to lowest overall rating
+    and contains at most ``limit`` unique players.
+    """
+
+    sorted_roster: List[Player] = sorted(
+        roster, key=lambda pl: pl.ovr or 0, reverse=True
+    )
     candidates: List[Player] = [
-        player for player in roster if _pos_match(player, positions)
+        player for player in sorted_roster if _pos_match(player, positions)
     ]
-    candidates.sort(key=lambda pl: pl.ovr or 0, reverse=True)
-    return candidates[0] if candidates else None
+
+    if len(candidates) < limit:
+        for player in sorted_roster:
+            if player in candidates:
+                continue
+            candidates.append(player)
+            if len(candidates) >= limit:
+                break
+
+    unique: List[Player] = []
+    seen: set[int] = set()
+    for player in candidates:
+        if player.id in seen:
+            continue
+        unique.append(player)
+        seen.add(player.id)
+        if len(unique) >= limit:
+            break
+
+    return unique
 
 
 def _build_team_player_stats(
@@ -47,18 +79,17 @@ def _build_team_player_stats(
         for key, value in updates.items():
             line[key] += value
 
-    qb = _select_player(roster, ["QB"])
-    rb = _select_player(roster, ["RB", "HB"])
-    wr = _select_player(roster, ["WR", "TE"])
-    edge = _select_player(roster, ["EDGE", "DE", "OLB"]) or _select_player(
-        roster, ["LB"]
-    )
+    qbs = _select_players(roster, ["QB"], limit=1)
+    rbs = _select_players(roster, ["RB", "HB", "FB"], limit=2)
+    receivers = _select_players(roster, ["WR", "TE"], limit=3)
+    defenders = _select_players(roster, ["EDGE", "DE", "OLB", "DL", "LB"], limit=2)
 
-    if qb:
+    if qbs:
+        qb = qbs[0]
         add_line(
             qb,
             {
-                "passing_yards": random.randint(180, 320),
+                "passing_yards": random.randint(210, 340),
                 "passing_tds": random.randint(1, 4),
                 "interceptions": random.randint(0, 2),
             },
@@ -66,37 +97,51 @@ def _build_team_player_stats(
         add_line(
             qb,
             {
-                "rushing_yards": random.randint(10, 40),
-                "rushing_tds": random.randint(0, 1),
+                "rushing_yards": random.randint(15, 60),
+                "rushing_tds": random.randint(0, 2),
             },
         )
 
-    if rb:
+    for idx, rb in enumerate(rbs):
         add_line(
             rb,
             {
-                "rushing_yards": random.randint(50, 130),
-                "rushing_tds": random.randint(0, 2),
-                "receptions": random.randint(1, 4),
-                "receiving_yards": random.randint(10, 40),
+                "rushing_yards": (
+                    random.randint(60, 130) if idx == 0 else random.randint(25, 80)
+                ),
+                "rushing_tds": random.randint(0, 2 if idx == 0 else 1),
+                "receptions": (
+                    random.randint(1, 5) if idx == 0 else random.randint(0, 3)
+                ),
+                "receiving_yards": (
+                    random.randint(15, 50) if idx == 0 else random.randint(5, 30)
+                ),
             },
         )
 
-    if wr:
+    for idx, receiver in enumerate(receivers):
         add_line(
-            wr,
+            receiver,
             {
-                "receptions": random.randint(4, 10),
-                "receiving_yards": random.randint(60, 160),
-                "receiving_tds": random.randint(0, 2),
+                "receptions": (
+                    random.randint(5, 11)
+                    if idx == 0
+                    else random.randint(3, 8) if idx == 1 else random.randint(2, 6)
+                ),
+                "receiving_yards": (
+                    random.randint(70, 170)
+                    if idx == 0
+                    else random.randint(40, 110) if idx == 1 else random.randint(25, 75)
+                ),
+                "receiving_tds": random.randint(0, 2 if idx < 2 else 1),
             },
         )
 
-    if edge:
+    for idx, defender in enumerate(defenders):
         add_line(
-            edge,
+            defender,
             {
-                "sacks": random.randint(0, 3),
+                "sacks": random.randint(1, 3) if idx == 0 else random.randint(0, 2),
             },
         )
 
