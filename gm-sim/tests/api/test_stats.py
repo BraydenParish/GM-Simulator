@@ -2,6 +2,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
+from typing import Dict
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -13,7 +14,7 @@ sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from app.db import get_db
 from app.main import app
-from app.models import Base, Player, PlayerSeasonStat, Team
+from app.models import Base, Player, PlayerSeasonStat, Team, TeamSeasonStat
 
 
 @pytest.fixture
@@ -79,6 +80,16 @@ def _stats_by_player(stats_payload):
         (entry["player_id"], entry["team_id"]): entry["stats"]
         for entry in stats_payload
     }
+
+
+def _totals_by_team(*games_payloads):
+    totals: Dict[int, Dict[str, int]] = {}
+    for payload in games_payloads:
+        for entry in payload["box_json"]["player_stats"]:
+            team_totals = totals.setdefault(entry["team_id"], {})
+            for key, value in entry["stats"].items():
+                team_totals[key] = team_totals.get(key, 0) + value
+    return totals
 
 
 @pytest.mark.asyncio
@@ -178,3 +189,60 @@ async def test_season_stats_accumulate(client: AsyncClient, test_db):
             )
         ).scalar_one()
         assert season_records.games_played == 2
+
+
+@pytest.mark.asyncio
+async def test_team_season_stats_aggregate(client: AsyncClient, test_db):
+    first = await client.post(
+        "/games/simulate",
+        params={
+            "home_team_id": 1,
+            "away_team_id": 2,
+            "season": 2028,
+            "week": 1,
+            "sim_seed": 31,
+        },
+    )
+    second = await client.post(
+        "/games/simulate",
+        params={
+            "home_team_id": 2,
+            "away_team_id": 1,
+            "season": 2028,
+            "week": 2,
+            "sim_seed": 32,
+        },
+    )
+    assert first.status_code == 200
+    assert second.status_code == 200
+
+    totals = _totals_by_team(first.json(), second.json())
+
+    response = await client.get("/stats/teams/season", params={"season": 2028})
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == len(totals)
+    for entry in payload:
+        expected = totals[entry["team_id"]]
+        assert entry["games_played"] == 2
+        assert entry["stats"] == expected
+
+    filtered = await client.get(
+        "/stats/teams/season", params={"season": 2028, "team_id": 1}
+    )
+    assert filtered.status_code == 200
+    filtered_payload = filtered.json()
+    assert len(filtered_payload) == 1
+    assert filtered_payload[0]["team_id"] == 1
+    assert filtered_payload[0]["stats"] == totals[1]
+
+    async with test_db() as session:
+        record = (
+            await session.execute(
+                select(TeamSeasonStat).where(
+                    TeamSeasonStat.season == 2028,
+                    TeamSeasonStat.team_id == 1,
+                )
+            )
+        ).scalar_one()
+        assert record.games_played == 2

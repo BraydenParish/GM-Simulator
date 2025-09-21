@@ -10,6 +10,7 @@ from app.models import (
     Player,
     PlayerGameStat,
     PlayerSeasonStat,
+    TeamSeasonStat,
     Standing,
     Team,
 )
@@ -74,6 +75,8 @@ async def simulate_game_endpoint(
     db.add(game)
     await db.flush()
 
+    team_totals: Dict[int, Dict[str, int]] = {}
+
     for stat in sim_result.get("player_stats", []):
         player_id = stat["player_id"]
         team_id = stat["team_id"]
@@ -113,6 +116,35 @@ async def simulate_game_endpoint(
         for key, value in stats_payload.items():
             merged_stats[key] = merged_stats.get(key, 0) + value
         season_stat.stats = merged_stats
+
+        team_line = team_totals.setdefault(team_id, {})
+        for key, value in stats_payload.items():
+            team_line[key] = team_line.get(key, 0) + value
+
+    for team_id, totals in team_totals.items():
+        team_season_stat = (
+            await db.execute(
+                select(TeamSeasonStat).where(
+                    TeamSeasonStat.season == season,
+                    TeamSeasonStat.team_id == team_id,
+                )
+            )
+        ).scalar_one_or_none()
+
+        if not team_season_stat:
+            team_season_stat = TeamSeasonStat(
+                season=season,
+                team_id=team_id,
+                games_played=0,
+                stats={key: 0 for key in totals},
+            )
+            db.add(team_season_stat)
+
+        team_season_stat.games_played += 1
+        merged_team_stats = dict(team_season_stat.stats or {})
+        for key, value in totals.items():
+            merged_team_stats[key] = merged_team_stats.get(key, 0) + value
+        team_season_stat.stats = merged_team_stats
 
     await db.commit()
     await db.refresh(game)

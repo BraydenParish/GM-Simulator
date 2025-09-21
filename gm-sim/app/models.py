@@ -219,3 +219,15 @@ class PlayerSeasonStat(Base):
     __table_args__ = (
         UniqueConstraint("season", "player_id", name="uq_stats_season_player"),
     )
+
+
+class TeamSeasonStat(Base):
+    __tablename__ = "team_season_stats"
+
+    id = Column(Integer, primary_key=True)
+    season = Column(Integer, nullable=False)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    games_played = Column(Integer, default=0, nullable=False)
+    stats = Column(JSON, nullable=False, default=dict)
+
+    __table_args__ = (UniqueConstraint("season", "team_id", name="uq_team_season"),)
