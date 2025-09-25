@@ -1,7 +1,7 @@
 """Integration tests for the GM Simulator."""
 
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.main import app
@@ -12,6 +12,7 @@ from app.models import Team, Player, DraftPick
 class TestGameSimulation:
     """Test game simulation flow."""
     
+    @pytest.mark.anyio
     async def test_full_game_simulation(self, async_client: AsyncClient):
         """Test complete game simulation with narrative."""
         
@@ -70,6 +71,7 @@ class TestGameSimulation:
 class TestSeasonOrchestration:
     """Test season management features."""
     
+    @pytest.mark.anyio
     async def test_schedule_generation(self, async_client: AsyncClient):
         """Test schedule generation."""
         
@@ -85,6 +87,7 @@ class TestSeasonOrchestration:
         assert schedule_data["weeks_scheduled"] >= 1
         assert schedule_data["total_games"] > 0
     
+    @pytest.mark.anyio
     async def test_get_schedule(self, async_client: AsyncClient):
         """Test retrieving schedule."""
         
@@ -103,6 +106,7 @@ class TestSeasonOrchestration:
 class TestDraftSystem:
     """Test draft functionality."""
     
+    @pytest.mark.anyio
     async def test_generate_rookie_class(self, async_client: AsyncClient):
         """Test rookie class generation."""
         
@@ -125,6 +129,7 @@ class TestDraftSystem:
         assert "overall" in rookie
         assert "potential" in rookie
     
+    @pytest.mark.anyio
     async def test_draft_board(self, async_client: AsyncClient):
         """Test draft board generation."""
         
@@ -148,6 +153,7 @@ class TestDraftSystem:
 class TestTradeSystem:
     """Test trade evaluation and AI."""
     
+    @pytest.mark.anyio
     async def test_team_needs_assessment(self, async_client: AsyncClient):
         """Test team needs evaluation."""
         
@@ -167,6 +173,7 @@ class TestTradeSystem:
             assert "needs" in needs_data
             assert "all_needs" in needs_data
     
+    @pytest.mark.anyio
     async def test_legacy_trade_evaluation(self, async_client: AsyncClient):
         """Test legacy trade evaluation."""
         
@@ -187,6 +194,7 @@ class TestTradeSystem:
 class TestDevelopmentSystem:
     """Test player development and injury system."""
     
+    @pytest.mark.anyio
     async def test_fatigue_report(self, async_client: AsyncClient):
         """Test fatigue reporting."""
         
@@ -201,6 +209,7 @@ class TestDevelopmentSystem:
         assert "high_fatigue_players" in fatigue_data
         assert "players" in fatigue_data
     
+    @pytest.mark.anyio
     async def test_injury_report(self, async_client: AsyncClient):
         """Test injury reporting."""
         
@@ -219,6 +228,7 @@ class TestDevelopmentSystem:
 class TestFranchiseManagement:
     """Test franchise save/load system."""
     
+    @pytest.mark.anyio
     async def test_franchise_status(self, async_client: AsyncClient):
         """Test getting franchise status."""
         
@@ -231,6 +241,7 @@ class TestFranchiseManagement:
         assert "current_week" in status_data
         assert "statistics" in status_data
     
+    @pytest.mark.anyio
     async def test_list_saves(self, async_client: AsyncClient):
         """Test listing save files."""
         
@@ -242,6 +253,7 @@ class TestFranchiseManagement:
         assert "total_saves" in saves_data
         assert "saves" in saves_data
     
+    @pytest.mark.anyio
     async def test_create_backup(self, async_client: AsyncClient):
         """Test backup creation."""
         
@@ -260,6 +272,7 @@ class TestFranchiseManagement:
 class TestAPIEndpoints:
     """Test basic API functionality."""
     
+    @pytest.mark.anyio
     async def test_health_check(self, async_client: AsyncClient):
         """Test health endpoint."""
         
@@ -267,6 +280,7 @@ class TestAPIEndpoints:
         assert response.status_code == 200
         assert response.json() == {"status": "ok"}
     
+    @pytest.mark.anyio
     async def test_teams_crud(self, async_client: AsyncClient):
         """Test basic teams CRUD operations."""
         
@@ -274,10 +288,13 @@ class TestAPIEndpoints:
         response = await async_client.get("/teams/")
         assert response.status_code == 200
         
-        # Create team
+        # Create team with unique abbreviation
+        import random
+        unique_abbr = f"T{random.randint(1000, 9999)}"
+        
         team_data = {
             "name": "Integration Test Team",
-            "abbr": "ITT",
+            "abbr": unique_abbr,
             "conference": "NFC",
             "division": "Test"
         }
@@ -295,7 +312,20 @@ class TestAPIEndpoints:
         team = response.json()
         assert team["name"] == team_data["name"]
         assert team["abbr"] == team_data["abbr"]
+        
+        # Test duplicate abbreviation returns 409
+        duplicate_team_data = {
+            "name": "Duplicate Team",
+            "abbr": unique_abbr,  # Same abbreviation
+            "conference": "AFC",
+            "division": "Test"
+        }
+        
+        response = await async_client.post("/teams/", json=duplicate_team_data)
+        assert response.status_code == 409
+        assert "already exists" in response.json()["detail"]
     
+    @pytest.mark.anyio
     async def test_players_list(self, async_client: AsyncClient):
         """Test players listing."""
         
@@ -311,5 +341,5 @@ class TestAPIEndpoints:
 @pytest.fixture
 async def async_client():
     """Create async test client."""
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client

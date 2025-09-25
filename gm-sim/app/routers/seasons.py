@@ -14,6 +14,24 @@ from app.services.injuries import InjuryEngine
 router = APIRouter(prefix="/seasons", tags=["seasons"])
 
 
+@router.get("/debug-config")
+async def debug_configuration():
+    """Debug endpoint to check system configuration."""
+    import os
+    
+    config_status = {
+        "openrouter_api_key_configured": bool(os.getenv("OPENROUTER_API_KEY")),
+        "openrouter_api_key_length": len(os.getenv("OPENROUTER_API_KEY", "")),
+        "available_services": {
+            "narrative_generation": bool(os.getenv("OPENROUTER_API_KEY")),
+            "injury_simulation": True,  # Always available
+            "season_simulation": True,  # Always available
+        }
+    }
+    
+    return config_status
+
+
 @router.post("/simulate-full")
 async def simulate_full_season(
     season: int,
@@ -23,40 +41,65 @@ async def simulate_full_season(
 ):
     """Simulate an entire season for all teams."""
     
-    # Get all teams
-    teams_result = await db.execute(select(Team))
-    teams = list(teams_result.scalars())
-    
-    if not teams:
-        raise HTTPException(status_code=404, detail="No teams found")
-    
-    # Build team seeds from database
-    team_seeds = [
-        TeamSeed(
-            id=team.id,
-            name=team.name,
-            abbr=team.abbr,
-            rating=team.elo or 1500
+    try:
+        # Get all teams
+        teams_result = await db.execute(select(Team))
+        teams = list(teams_result.scalars())
+        
+        if not teams:
+            raise HTTPException(status_code=404, detail="No teams found")
+        
+        # Build team seeds from database
+        team_seeds = [
+            TeamSeed(
+                id=team.id,
+                name=team.name,
+                abbr=team.abbr,
+                rating=team.elo or 1500
+            )
+            for team in teams
+        ]
+        
+        # Set up services with error handling
+        narrative_client = None
+        if generate_narratives:
+            try:
+                narrative_client = OpenRouterClient()
+                # Test if API key is configured
+                if not narrative_client.api_key:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail="OpenRouter API key not configured. Set OPENROUTER_API_KEY environment variable."
+                    )
+            except RuntimeError as e:
+                raise HTTPException(status_code=400, detail=f"Narrative setup failed: {str(e)}")
+        
+        injury_engine = InjuryEngine() if use_injuries else None
+        state_store = GameStateStore(db)
+        
+        # Create simulator
+        simulator = SeasonSimulator(
+            team_seeds,
+            narrative_client=narrative_client,
+            injury_engine=injury_engine,
+            state_store=state_store,
+            season_year=season,
         )
-        for team in teams
-    ]
-    
-    # Set up services
-    narrative_client = OpenRouterClient() if generate_narratives else None
-    injury_engine = InjuryEngine() if use_injuries else None
-    state_store = GameStateStore(db)
-    
-    # Create simulator
-    simulator = SeasonSimulator(
-        team_seeds,
-        narrative_client=narrative_client,
-        injury_engine=injury_engine,
-        state_store=state_store,
-        season_year=season,
-    )
-    
-    # Run simulation
-    game_logs = await simulator.simulate_season()
+        
+        # Run simulation
+        game_logs = await simulator.simulate_season()
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        # Catch any other unexpected errors
+        import logging
+        logging.error(f"Season simulation failed: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Season simulation failed: {str(e)}"
+        )
     
     # Save games to database
     for log in game_logs:
