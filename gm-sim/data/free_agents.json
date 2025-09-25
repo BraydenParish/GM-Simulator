@@ -1,0 +1,86 @@
+{
+  "2025": [
+    {
+      "name": "Dak Prescott",
+      "pos": "QB",
+      "tier": "blue-chip",
+      "expected_market": "4y / $220M",
+      "notes": "Franchise tag eligible but projected to test market",
+      "source": "Projected 2025 UFAs"
+    },
+    {
+      "name": "Tee Higgins",
+      "pos": "WR",
+      "tier": "impact starter",
+      "expected_market": "4y / $96M",
+      "notes": "Would headline the receiver class if not extended",
+      "source": "Projected 2025 UFAs"
+    },
+    {
+      "name": "Brian Burns",
+      "pos": "EDGE",
+      "tier": "impact starter",
+      "expected_market": "5y / $130M",
+      "notes": "Premium pass rusher entering his prime",
+      "source": "Projected 2025 UFAs"
+    },
+    {
+      "name": "Josh Allen",
+      "pos": "EDGE",
+      "tier": "impact starter",
+      "expected_market": "5y / $128M",
+      "notes": "Versatile pass rusher coming off double-digit sacks",
+      "source": "Projected 2025 UFAs"
+    },
+    {
+      "name": "Xavien Howard",
+      "pos": "CB",
+      "tier": "veteran starter",
+      "expected_market": "2y / $28M",
+      "notes": "Ball-hawking corner who can anchor a secondary",
+      "source": "Projected 2025 UFAs"
+    }
+  ],
+  "2026": [
+    {
+      "name": "Justin Jefferson",
+      "pos": "WR",
+      "tier": "blue-chip",
+      "expected_market": "4y / $140M",
+      "notes": "Face of a franchise receiver entering peak years",
+      "source": "Projected 2026 UFAs"
+    },
+    {
+      "name": "Micah Parsons",
+      "pos": "EDGE",
+      "tier": "blue-chip",
+      "expected_market": "5y / $190M",
+      "notes": "Defensive Player of the Year candidate every season",
+      "source": "Projected 2026 UFAs"
+    },
+    {
+      "name": "Patrick Surtain II",
+      "pos": "CB",
+      "tier": "blue-chip",
+      "expected_market": "5y / $120M",
+      "notes": "Shutdown corner with elite coverage metrics",
+      "source": "Projected 2026 UFAs"
+    },
+    {
+      "name": "Ja'Marr Chase",
+      "pos": "WR",
+      "tier": "blue-chip",
+      "expected_market": "4y / $150M",
+      "notes": "Game-breaking perimeter weapon",
+      "source": "Projected 2026 UFAs"
+    },
+    {
+      "name": "Tristan Wirfs",
+      "pos": "OT",
+      "tier": "impact starter",
+      "expected_market": "5y / $120M",
+      "notes": "Franchise left tackle with All-Pro pedigree",
+      "source": "Projected 2026 UFAs"
+    }
+  ]
+}

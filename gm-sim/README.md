@@ -106,6 +106,39 @@ draft_results = requests.post("http://localhost:8000/draft/conduct", params={
 })
 ```
 
+### Drive an LLM Assistant Workflow
+```python
+import requests
+
+# Surface a consolidated dashboard for the chat agent
+dashboard = requests.get(
+    "http://localhost:8000/assistant/season-dashboard",
+    params={"season": 2025, "free_agent_limit": 5},
+).json()
+
+# Inspect projected free-agent targets for the upcoming offseason
+projections = requests.get(
+    "http://localhost:8000/assistant/free-agents/projections",
+    params={"season": 2025},
+).json()
+
+# Sign a free agent with an even cash-flow contract constructed for the LLM
+signing = requests.post(
+    "http://localhost:8000/assistant/free-agents/sign",
+    json={
+        "player_id": 123,
+        "team_id": 5,
+        "start_year": 2025,
+        "years": 3,
+        "total_value": 36000000,
+        "signing_bonus": 12000000,
+    },
+).json()
+
+# Pull big-play highlights from a simulated matchup to narrate the recap
+highlights = requests.get("http://localhost:8000/assistant/games/42/highlights").json()
+```
+
 ### Evaluate Trades
 ```python
 # Get team needs

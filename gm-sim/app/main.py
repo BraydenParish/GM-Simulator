@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from app.routers import (
+    assistant,
     teams,
     players,
     depth,
@@ -62,6 +63,7 @@ app.include_router(development.router)
 app.include_router(trades.router)
 app.include_router(franchise.router)
 app.include_router(playoffs.router)
+app.include_router(assistant.router)
 
 
 @app.get("/healthz")
