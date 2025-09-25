@@ -149,6 +149,36 @@ class Game(Base):
     narrative_facts = Column(JSON)
 
 
+class PlayoffGame(Base):
+    __tablename__ = "playoff_games"
+
+    id = Column(Integer, primary_key=True)
+    season = Column(Integer, nullable=False)
+    round_name = Column(String, nullable=False)
+    round_number = Column(Integer, nullable=False)
+    matchup = Column(Integer, nullable=False)
+    home_team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    away_team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    home_seed = Column(Integer, nullable=False)
+    away_seed = Column(Integer, nullable=False)
+    home_score = Column(Integer, nullable=False)
+    away_score = Column(Integer, nullable=False)
+    winner_team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    headline = Column(String)
+    box_json = Column(JSON)
+    narrative_recap = Column(String)
+    narrative_facts = Column(JSON)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "season",
+            "round_number",
+            "matchup",
+            name="uq_playoff_game_round_matchup",
+        ),
+    )
+
+
 class Standing(Base):
     __tablename__ = "standings"
     season = Column(Integer, primary_key=True)

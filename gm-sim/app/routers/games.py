@@ -8,7 +8,7 @@ from app.services.sim import simulate_game
 from app.services.ratings import compute_team_rating
 from app.services.llm import OpenRouterClient
 from app.services.state import GameStateStore
-from typing import Dict
+from typing import Dict, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -124,3 +124,22 @@ async def simulate_game_endpoint(
             standing.ties += 1
     await db.commit()
     return game
+
+
+@router.get("/by-week", response_model=List[GameRead])
+async def list_games_by_week(
+    season: int,
+    week: int,
+    db: AsyncSession = Depends(get_db),
+) -> List[GameRead]:
+    """Return games (with narratives) for a given season and week."""
+
+    games_result = await db.execute(
+        select(Game)
+        .where(Game.season == season, Game.week == week)
+        .order_by(Game.id)
+    )
+    games = list(games_result.scalars())
+    if not games:
+        return []
+    return games

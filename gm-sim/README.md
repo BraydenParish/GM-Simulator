@@ -64,6 +64,11 @@ A comprehensive NFL franchise management simulator backend built with FastAPI, S
    - Interactive docs: [http://localhost:8000/docs](http://localhost:8000/docs)
    - Alternative docs: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
+5. **Launch the lightweight web client**
+   - Visit [http://localhost:8000/](http://localhost:8000/) for a minimal control center.
+   - Click **Initialize Season** to auto-generate a schedule, then **Simulate Next Week** to advance.
+   - Standings, progress, and narrative recaps update after every simulation.
+
 ### Optional: Enable AI Narratives
 ```sh
 export OPENROUTER_API_KEY="your-api-key"

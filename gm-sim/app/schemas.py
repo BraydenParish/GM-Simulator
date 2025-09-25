@@ -199,6 +199,39 @@ class DraftPickRead(DraftPickBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class PlayoffGameRead(BaseModel):
+    round_number: int
+    round_name: str
+    matchup: int
+    home_team_id: int
+    home_seed: int
+    home_team: str
+    away_team_id: int
+    away_seed: int
+    away_team: str
+    home_score: int
+    away_score: int
+    winner_team_id: int
+    winner_seed: int
+    headline: str
+    narrative_recap: Optional[str] = None
+
+
+class ChampionSummary(BaseModel):
+    team_id: int
+    seed: int
+    name: str
+    abbr: str
+
+
+class PlayoffSimulationResponse(BaseModel):
+    season: int
+    bracket_size: int
+    generated_narratives: bool
+    games: List[PlayoffGameRead]
+    champion: ChampionSummary
+
+
 class TransactionBase(BaseModel):
     type: str
     team_from: Optional[int] = None
