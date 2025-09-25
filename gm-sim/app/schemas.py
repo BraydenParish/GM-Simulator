@@ -199,6 +199,28 @@ class DraftPickRead(DraftPickBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class InjuryReportRead(BaseModel):
+    id: int
+    season: int
+    week: int
+    team_id: int
+    team_abbr: Optional[str] = None
+    player_id: int
+    player_name: Optional[str] = None
+    severity: str
+    weeks_out: int
+    occurred_snap: Optional[int] = None
+    injury_type: str
+    expected_return_week: Optional[int] = None
+
+
+class InjuryReportList(BaseModel):
+    season: int
+    week: Optional[int] = None
+    team_id: Optional[int] = None
+    injuries: List[InjuryReportRead]
+
+
 class PlayoffGameRead(BaseModel):
     round_number: int
     round_name: str

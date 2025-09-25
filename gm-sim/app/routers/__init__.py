@@ -1,0 +1,41 @@
+"""FastAPI router modules exposed for application wiring."""
+
+from . import (
+    assistant,
+    contracts,
+    depth,
+    development,
+    draft,
+    franchise,
+    games,
+    injuries,
+    picks,
+    players,
+    playoffs,
+    roster,
+    seasons,
+    standings,
+    teams,
+    trades,
+    transactions,
+)
+
+__all__ = [
+    "assistant",
+    "contracts",
+    "depth",
+    "development",
+    "draft",
+    "franchise",
+    "games",
+    "injuries",
+    "picks",
+    "players",
+    "playoffs",
+    "roster",
+    "seasons",
+    "standings",
+    "teams",
+    "trades",
+    "transactions",
+]

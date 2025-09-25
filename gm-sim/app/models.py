@@ -149,6 +149,32 @@ class Game(Base):
     narrative_facts = Column(JSON)
 
 
+class InjuryReport(Base):
+    __tablename__ = "injury_reports"
+
+    id = Column(Integer, primary_key=True)
+    season = Column(Integer, nullable=False)
+    week = Column(Integer, nullable=False)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    severity = Column(String, nullable=False)
+    weeks_out = Column(Integer, nullable=False)
+    occurred_snap = Column(Integer)
+    injury_type = Column(String, nullable=False)
+    expected_return_week = Column(Integer)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint(
+            "season",
+            "week",
+            "player_id",
+            name="uq_injury_week_player",
+        ),
+    )
+
+
 class PlayoffGame(Base):
     __tablename__ = "playoff_games"
 

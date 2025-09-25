@@ -6,7 +6,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
-from app.models import Game, Schedule, Standing, Team
+from app.models import Game, InjuryReport, Schedule, Standing, Team
 from app.schemas import GameRead, StandingRead
 from app.services.injuries import InjuryEngine
 from app.services.llm import OpenRouterClient
@@ -47,7 +47,7 @@ async def simulate_full_season(
         # Get all teams
         teams_result = await db.execute(select(Team))
         teams = list(teams_result.scalars())
-        
+
         if not teams:
             raise HTTPException(status_code=404, detail="No teams found")
         
@@ -78,16 +78,23 @@ async def simulate_full_season(
         
         injury_engine = InjuryEngine() if use_injuries else None
         state_store = GameStateStore(db)
-        
+        rosters = None
+        if injury_engine is not None:
+            rosters = await state_store.participant_rosters()
+
         # Create simulator
         simulator = SeasonSimulator(
             team_seeds,
             narrative_client=narrative_client,
             injury_engine=injury_engine,
+            rosters=rosters,
             state_store=state_store,
             season_year=season,
         )
         
+        # Clear prior injury reports for this season to avoid duplication
+        await db.execute(delete(InjuryReport).where(InjuryReport.season == season))
+
         # Run simulation
         game_logs = await simulator.simulate_season()
         
@@ -105,6 +112,14 @@ async def simulate_full_season(
     
     # Save games to database
     for log in game_logs:
+        injury_records: Dict[int, Dict[str, object]] = {}
+        for event in log.injuries:
+            payload = event.to_dict(current_week=log.week, season=season)
+            if payload["player_id"] is None:
+                continue
+            injury_records[int(payload["player_id"])] = payload
+
+        injuries_payload = list(injury_records.values())
         game = Game(
             season=season,
             week=log.week,
@@ -114,11 +129,27 @@ async def simulate_full_season(
             away_score=log.away_score,
             sim_seed=None,
             box_json={"drives": log.drives},
-            injuries_json=log.injuries,
+            injuries_json=injuries_payload,
             narrative_recap=log.recap,
             narrative_facts=log.narrative_facts,
         )
         db.add(game)
+
+        for payload in injuries_payload:
+            occurred_snap = payload.get("occurred_snap")
+            db.add(
+                InjuryReport(
+                    season=season,
+                    week=log.week,
+                    team_id=int(payload["team_id"]),
+                    player_id=int(payload["player_id"]),
+                    severity=str(payload["severity"]),
+                    weeks_out=int(payload["weeks_out"]),
+                    occurred_snap=int(occurred_snap) if occurred_snap is not None else None,
+                    injury_type=str(payload["injury_type"]),
+                    expected_return_week=payload.get("expected_return_week"),
+                )
+            )
     
     # Update standings
     standings_data = simulator.standings()
@@ -165,6 +196,7 @@ async def simulate_week(
     season: int,
     week: int,
     generate_narratives: bool = True,
+    use_injuries: bool = False,
     db: AsyncSession = Depends(get_db),
 ):
     """Simulate a specific week of games."""
@@ -178,8 +210,15 @@ async def simulate_week(
     if not schedule_games:
         raise HTTPException(status_code=404, detail=f"No schedule found for season {season}, week {week}")
     
+    await db.execute(
+        delete(InjuryReport).where(
+            InjuryReport.season == season, InjuryReport.week == week
+        )
+    )
+
     games_created = []
-    
+    state_store = GameStateStore(db)
+
     for scheduled_game in schedule_games:
         # Get teams
         home_team = (await db.execute(select(Team).where(Team.id == scheduled_game.home_team_id))).scalar_one_or_none()
@@ -196,11 +235,17 @@ async def simulate_week(
         
         # Set up simulator for just these two teams
         narrative_client = OpenRouterClient() if generate_narratives else None
-        state_store = GameStateStore(db)
-        
+        injury_engine = None
+        rosters = None
+        if use_injuries:
+            injury_engine = InjuryEngine()
+            rosters = await state_store.participant_rosters()
+
         simulator = SeasonSimulator(
             team_seeds,
             narrative_client=narrative_client,
+            injury_engine=injury_engine,
+            rosters=rosters,
             state_store=state_store,
             season_year=season,
         )
@@ -213,6 +258,15 @@ async def simulate_week(
         game_logs = simulator.games()
         if game_logs:
             log = game_logs[0]
+            injury_records: Dict[int, Dict[str, object]] = {}
+            for event in log.injuries:
+                payload = event.to_dict(current_week=week, season=season)
+                if payload["player_id"] is None:
+                    continue
+                injury_records[int(payload["player_id"])] = payload
+
+            injuries_payload = list(injury_records.values())
+
             game = Game(
                 season=season,
                 week=week,
@@ -222,12 +276,30 @@ async def simulate_week(
                 away_score=log.away_score,
                 sim_seed=None,
                 box_json={"drives": log.drives},
-                injuries_json=log.injuries,
+                injuries_json=injuries_payload,
                 narrative_recap=log.recap,
                 narrative_facts=log.narrative_facts,
             )
             db.add(game)
             games_created.append(game)
+
+            for payload in injuries_payload:
+                occurred_snap = payload.get("occurred_snap")
+                db.add(
+                    InjuryReport(
+                        season=season,
+                        week=week,
+                        team_id=int(payload["team_id"]),
+                        player_id=int(payload["player_id"]),
+                        severity=str(payload["severity"]),
+                        weeks_out=int(payload["weeks_out"]),
+                        occurred_snap=int(occurred_snap)
+                        if occurred_snap is not None
+                        else None,
+                        injury_type=str(payload["injury_type"]),
+                        expected_return_week=payload.get("expected_return_week"),
+                    )
+                )
             
             # Update standings
             standings_data = simulator.standings()

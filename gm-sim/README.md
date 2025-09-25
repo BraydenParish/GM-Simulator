@@ -92,6 +92,12 @@ requests.post("http://localhost:8000/seasons/simulate-full", params={
 
 # Check final standings
 standings = requests.get("http://localhost:8000/seasons/standings", params={"season": 2024})
+
+# Review persisted injury reports for the season
+injury_report = requests.get(
+    "http://localhost:8000/injuries/report",
+    params={"season": 2024},
+)
 ```
 
 ### Conduct a Draft

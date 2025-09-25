@@ -278,6 +278,8 @@ class SeasonSimulator:
             narrative_facts=narrative_facts,
         )
         if injuries:
+            for event in injuries:
+                event.week = week_index
             log.injuries.extend(injuries)
             self._injury_history.extend(injuries)
         self._games.append(log)

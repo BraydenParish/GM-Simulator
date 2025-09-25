@@ -18,6 +18,7 @@ from app.routers import (
     picks,
     transactions,
     games,
+    injuries,
     standings,
     roster,
     seasons,
@@ -55,6 +56,7 @@ app.include_router(contracts.router)
 app.include_router(picks.router)
 app.include_router(transactions.router)
 app.include_router(games.router)
+app.include_router(injuries.router)
 app.include_router(standings.router)
 app.include_router(roster.router)
 app.include_router(seasons.router)
