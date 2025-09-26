@@ -260,12 +260,12 @@ See [docs/API_GUIDE.md](docs/API_GUIDE.md) for comprehensive documentation.
 - ✅ Injury and fatigue modeling
 - ✅ Multi-season persistence and save/load
 - ✅ Salary cap management and contract system
+- ✅ Playoff bracket generation and postseason simulation
+- ✅ Advanced analytics overlays (EPA + win probability charts)
 
 ### Future Enhancements
-- **Playoff System**: Bracket generation and postseason simulation
 - **Free Agency**: Realistic bidding and contract negotiations
 - **Coaching Systems**: Scheme fits and coaching impact on development
-- **Advanced Analytics**: EPA, win probability, and modern metrics
 - **Web Interface**: React/Vue frontend for easier franchise management
 - **Multiplayer**: Multi-user leagues with human GMs
 

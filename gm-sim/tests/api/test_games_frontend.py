@@ -83,3 +83,42 @@ async def test_list_games_by_week_returns_narratives(
     assert teams_response.status_code == 200
     team_payload = teams_response.json()
     assert {team["abbr"] for team in team_payload} == {"HOM", "ROD"}
+
+
+@pytest.mark.asyncio
+async def test_game_analytics_endpoint_returns_epa_and_win_prob(
+    client: AsyncClient, test_sessionmaker: async_sessionmaker[AsyncSession]
+) -> None:
+    async with test_sessionmaker() as session:
+        home = Team(name="Analytics Home", abbr="ANH")
+        away = Team(name="Analytics Away", abbr="ANA")
+        session.add_all([home, away])
+        await session.flush()
+
+        game = Game(
+            season=2025,
+            week=2,
+            home_team_id=home.id,
+            away_team_id=away.id,
+            home_score=28,
+            away_score=20,
+            box_json={
+                "drives": [
+                    {"team": "home", "result": "TD", "yards": 72, "minutes": 2.5},
+                    {"team": "away", "result": "FG", "yards": 45, "minutes": 3.0},
+                    {"team": "home", "result": "Punt", "yards": 38, "minutes": 2.2},
+                ]
+            },
+        )
+        session.add(game)
+        await session.commit()
+        await session.refresh(game)
+
+    response = await client.get(f"/games/{game.id}/analytics")
+    assert response.status_code == 200
+    payload = response.json()
+    assert "drives" in payload and payload["drives"], "Expected drive analytics entries"
+    first_drive = payload["drives"][0]
+    assert "epa" in first_drive and isinstance(first_drive["epa"], float)
+    assert "home_win_prob" in first_drive
+    assert "summary" in payload and "home" in payload["summary"]

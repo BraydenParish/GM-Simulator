@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional, Sequence
+from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 from app.services.injuries import InjuryEngine, PlayerParticipation
 from app.services.llm import OpenRouterClient
 from app.services.sim import simulate_game
+from app.services.analytics import compute_drive_analytics
 
 
 @dataclass(slots=True)
@@ -45,6 +46,7 @@ class PlayoffGameLog:
     winner_seed: PlayoffSeed
     recap: Optional[str] = None
     narrative_facts: Optional[Dict[str, object]] = None
+    analytics: Optional[Dict[str, Any]] = None
 
 
 class PlayoffSimulator:
@@ -207,6 +209,11 @@ class PlayoffSimulator:
             winner_seed=winner,
             recap=recap_summary,
             narrative_facts=recap_facts,
+            analytics=compute_drive_analytics(
+                drives=result.get("drives", []),
+                home_score=home_score,
+                away_score=away_score,
+            ),
         )
 
     def _expected_total_games(self) -> int:

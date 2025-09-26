@@ -132,6 +132,7 @@ async def simulate_playoffs(
                 "drives": game.drives,
                 "player_stats": game.player_stats,
                 "box": game.box_score,
+                "analytics": game.analytics,
             },
             narrative_recap=game.recap,
             narrative_facts=game.narrative_facts,

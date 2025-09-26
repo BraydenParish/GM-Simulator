@@ -6,12 +6,13 @@ import asyncio
 import random
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from app.services.llm import OpenRouterClient
 from app.services.sim import simulate_game
 from app.services.injuries import InjuryEngine, InjuryEvent, PlayerParticipation
 from app.services.state import GameStateStore, attach_names_to_participants
+from app.services.analytics import compute_drive_analytics
 
 
 @dataclass
@@ -61,6 +62,7 @@ class GameLog:
     recap: Optional[str] = None
     injuries: List[InjuryEvent] = field(default_factory=list)
     narrative_facts: Optional[Dict[str, object]] = None
+    analytics: Optional[Dict[str, Any]] = None
 
 
 class SeasonSimulator:
@@ -276,6 +278,11 @@ class SeasonSimulator:
             headline=str(result.get("headline", "")),
             recap=recap,
             narrative_facts=narrative_facts,
+        )
+        log.analytics = compute_drive_analytics(
+            drives=log.drives,
+            home_score=home_score,
+            away_score=away_score,
         )
         if injuries:
             for event in injuries:

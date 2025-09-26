@@ -120,6 +120,7 @@ async def simulate_full_season(
             injury_records[int(payload["player_id"])] = payload
 
         injuries_payload = list(injury_records.values())
+        analytics_payload = log.analytics or {}
         game = Game(
             season=season,
             week=log.week,
@@ -128,7 +129,7 @@ async def simulate_full_season(
             home_score=log.home_score,
             away_score=log.away_score,
             sim_seed=None,
-            box_json={"drives": log.drives},
+            box_json={"drives": log.drives, "analytics": analytics_payload},
             injuries_json=injuries_payload,
             narrative_recap=log.recap,
             narrative_facts=log.narrative_facts,
@@ -267,6 +268,7 @@ async def simulate_week(
 
             injuries_payload = list(injury_records.values())
 
+            analytics_payload = log.analytics or {}
             game = Game(
                 season=season,
                 week=week,
@@ -275,7 +277,7 @@ async def simulate_week(
                 home_score=log.home_score,
                 away_score=log.away_score,
                 sim_seed=None,
-                box_json={"drives": log.drives},
+                box_json={"drives": log.drives, "analytics": analytics_payload},
                 injuries_json=injuries_payload,
                 narrative_recap=log.recap,
                 narrative_facts=log.narrative_facts,
