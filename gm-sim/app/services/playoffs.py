@@ -6,6 +6,7 @@ import random
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 
+from app.services.coaching import CoachingSystem
 from app.services.injuries import InjuryEngine, PlayerParticipation
 from app.services.llm import OpenRouterClient
 from app.services.sim import simulate_game
@@ -47,6 +48,7 @@ class PlayoffGameLog:
     recap: Optional[str] = None
     narrative_facts: Optional[Dict[str, object]] = None
     analytics: Optional[Dict[str, Any]] = None
+    coaching_notes: Optional[Dict[str, Dict[str, object]]] = None
 
 
 class PlayoffSimulator:
@@ -60,6 +62,7 @@ class PlayoffSimulator:
         injury_engine: Optional[InjuryEngine] = None,
         rosters: Optional[Dict[int, List[PlayerParticipation]]] = None,
         rng_seed: Optional[int] = None,
+        coaching_system: Optional[CoachingSystem] = None,
     ) -> None:
         ordered = sorted(seeds, key=lambda seed: seed.seed)
         if len(ordered) < 2:
@@ -71,6 +74,7 @@ class PlayoffSimulator:
         self._injury_engine = injury_engine
         self._rng = random.Random(rng_seed)
         self._games: List[PlayoffGameLog] = []
+        self._coaching_system = coaching_system
         if injury_engine is not None:
             if rosters is None:
                 self._rosters = {seed.team_id: [] for seed in ordered}
@@ -153,6 +157,14 @@ class PlayoffSimulator:
         away_roster = self._rosters.get(lower_seed.team_id)
         home_rating = higher_seed.rating
         away_rating = lower_seed.rating
+        coaching_notes: Dict[str, Dict[str, object]] = {}
+        if self._coaching_system is not None:
+            home_rating = self._coaching_system.apply_rating(higher_seed.team_id, home_rating)
+            away_rating = self._coaching_system.apply_rating(lower_seed.team_id, away_rating)
+            coaching_notes = self._coaching_system.describe_matchup(
+                higher_seed.team_id,
+                lower_seed.team_id,
+            )
         if self._injury_engine is not None:
             home_penalty = self._injury_engine.team_availability_penalty(home_roster or [])
             away_penalty = self._injury_engine.team_availability_penalty(away_roster or [])
@@ -191,7 +203,7 @@ class PlayoffSimulator:
             recap_summary = narrative.summary
             recap_facts = narrative.facts
 
-        return PlayoffGameLog(
+        game_log = PlayoffGameLog(
             round_number=round_number,
             round_name=round_name,
             matchup=matchup_index,
@@ -215,6 +227,12 @@ class PlayoffSimulator:
                 away_score=away_score,
             ),
         )
+        if coaching_notes:
+            game_log.coaching_notes = coaching_notes
+            if game_log.narrative_facts is None:
+                game_log.narrative_facts = {}
+            game_log.narrative_facts.setdefault("coaching", coaching_notes)
+        return game_log
 
     def _expected_total_games(self) -> int:
         return len(self._seeds) - 1

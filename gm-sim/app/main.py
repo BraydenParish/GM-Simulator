@@ -14,6 +14,7 @@ from app.routers import (
     teams,
     players,
     depth,
+    coaching,
     contracts,
     picks,
     transactions,
@@ -65,6 +66,7 @@ app.include_router(development.router)
 app.include_router(trades.router)
 app.include_router(franchise.router)
 app.include_router(playoffs.router)
+app.include_router(coaching.router)
 app.include_router(assistant.router)
 
 

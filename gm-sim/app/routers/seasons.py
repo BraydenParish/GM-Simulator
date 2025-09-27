@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_db
 from app.models import Game, InjuryReport, Schedule, Standing, Team
 from app.schemas import GameRead, StandingRead
+from app.services.coaching import CoachingSystem
 from app.services.injuries import InjuryEngine
 from app.services.llm import OpenRouterClient
 from app.services.season import SeasonSimulator, TeamSeed
@@ -83,6 +84,8 @@ async def simulate_full_season(
             rosters = await state_store.participant_rosters()
 
         # Create simulator
+        coaching_system = await CoachingSystem.build(db)
+
         simulator = SeasonSimulator(
             team_seeds,
             narrative_client=narrative_client,
@@ -90,6 +93,7 @@ async def simulate_full_season(
             rosters=rosters,
             state_store=state_store,
             season_year=season,
+            coaching_system=coaching_system,
         )
         
         # Clear prior injury reports for this season to avoid duplication
@@ -219,6 +223,7 @@ async def simulate_week(
 
     games_created = []
     state_store = GameStateStore(db)
+    coaching_system = await CoachingSystem.build(db)
 
     for scheduled_game in schedule_games:
         # Get teams
@@ -249,6 +254,7 @@ async def simulate_week(
             rosters=rosters,
             state_store=state_store,
             season_year=season,
+            coaching_system=coaching_system,
         )
         
         # Simulate just this matchup

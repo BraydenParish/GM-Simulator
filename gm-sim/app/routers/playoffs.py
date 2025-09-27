@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_db
 from app.models import PlayoffGame, Standing, Team
 from app.schemas import ChampionSummary, PlayoffGameRead, PlayoffSimulationResponse
+from app.services.coaching import CoachingSystem
 from app.services.llm import OpenRouterClient
 from app.services.playoffs import PlayoffSeed, PlayoffSimulator
 
@@ -101,11 +102,14 @@ async def simulate_playoffs(
 
         injury_engine = InjuryEngine()
 
+    coaching_system = await CoachingSystem.build(db)
+
     simulator = PlayoffSimulator(
         seeds,
         narrative_client=narrative_client,
         injury_engine=injury_engine,
         rng_seed=season,
+        coaching_system=coaching_system,
     )
 
     games = await simulator.simulate()

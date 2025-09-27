@@ -10,12 +10,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Player, Team
 from app.schemas import (
+    FreeAgentBiddingRequest,
+    FreeAgentBiddingResult,
+    FreeAgentOfferEvaluation,
     FreeAgentProjectionRead,
     FreeAgentSigningPlan,
     FreeAgentSigningResponse,
     FreeAgentSummary,
 )
 from app.schemas import ContractRead, ContractSignRequest
+from app.services.coaching import CoachingSystem
 from app.services.contracts import sign_contract
 
 _DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "free_agents.json"
@@ -148,4 +152,99 @@ async def sign_free_agent(
     return FreeAgentSigningResponse(
         contract=ContractRead.model_validate(contract),
         team_cap_space=team.cap_space if team else 0,
+    )
+
+
+async def evaluate_free_agent_bidding(
+    db: AsyncSession,
+    request: FreeAgentBiddingRequest,
+    *,
+    coaching: CoachingSystem | None = None,
+) -> FreeAgentBiddingResult:
+    player = await db.get(Player, request.player_id)
+    if player is None:
+        raise ValueError("Player not found for bidding evaluation")
+
+    system = coaching or await CoachingSystem.build(db)
+    evaluations: List[FreeAgentOfferEvaluation] = []
+
+    for offer in request.offers:
+        team = await db.get(Team, offer.team_id)
+        if team is None:
+            continue
+        cap_space = team.cap_space
+        base_apv = offer.total_value / max(offer.years, 1)
+        signing_component = offer.signing_bonus * 0.08
+        guarantee_component = (offer.guarantees_total or offer.signing_bonus) * 0.04
+        contender_component = 0.0
+        if request.prefer_contender and team.elo is not None:
+            contender_component = max(0.0, (team.elo - 1500) / 75.0)
+        coaching_effect = system.effect_for(team.id)
+        development_component = coaching_effect.development_rate_bonus() * 120
+        rating_component = coaching_effect.rating_adjustment() * 0.15
+        loyalty_component = 0.0
+        if player.team_id == team.id:
+            loyalty_component = max(request.loyalty_weight, 0.0) * 5.0
+        scheme_component = 0.0
+        if offer.scheme_pitch:
+            pitch_lower = offer.scheme_pitch.lower()
+            offense = (team.scheme_off or "").lower()
+            defense = (team.scheme_def or "").lower()
+            if pitch_lower and (pitch_lower in offense or pitch_lower in defense):
+                scheme_component = 2.5
+
+        notes: List[str] = []
+        if offer.pitch:
+            notes.append(offer.pitch)
+        if coaching_effect.notes:
+            notes.extend(coaching_effect.notes[:2])
+        if cap_space is not None and cap_space < offer.total_value / max(1, offer.years):
+            notes.append("Cap squeeze warning")
+        if scheme_component:
+            notes.append("Scheme fit bonus applied")
+        if contender_component:
+            notes.append("Contender premium applied")
+
+        score = (
+            base_apv
+            + signing_component
+            + guarantee_component
+            + contender_component
+            + development_component
+            + rating_component
+            + loyalty_component
+            + scheme_component
+        )
+
+        evaluations.append(
+            FreeAgentOfferEvaluation(
+                team_id=team.id,
+                score=round(score, 2),
+                years=offer.years,
+                total_value=offer.total_value,
+                signing_bonus=offer.signing_bonus,
+                guarantees_total=offer.guarantees_total,
+                cap_space=cap_space,
+                notes=notes,
+            )
+        )
+
+    if not evaluations:
+        raise ValueError("No valid offers provided for bidding evaluation")
+
+    ranked = sorted(evaluations, key=lambda entry: entry.score, reverse=True)
+    winner = ranked[0]
+    rationale_parts = [
+        f"{winner.total_value // max(winner.years, 1)} AAV led the market",
+        f"coaching boosted score by {system.effect_for(winner.team_id).rating_adjustment():.1f}",
+    ]
+    if winner.notes:
+        rationale_parts.append("; ".join(winner.notes[:2]))
+
+    return FreeAgentBiddingResult(
+        player_id=request.player_id,
+        winning_team_id=winner.team_id,
+        winning_offer=winner,
+        ranked_offers=ranked,
+        rationale=" | ".join(rationale_parts),
     )

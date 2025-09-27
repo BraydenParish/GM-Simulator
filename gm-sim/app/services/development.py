@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Player, PlayerStamina
+from app.services.coaching import CoachingSystem
 
 
 @dataclass
@@ -63,7 +64,11 @@ class PlayerDevelopmentEngine:
     def __init__(self, seed: Optional[int] = None):
         self.random = random.Random(seed)
     
-    async def process_offseason_development(self, session: AsyncSession) -> List[DevelopmentEvent]:
+    async def process_offseason_development(
+        self,
+        session: AsyncSession,
+        coaching: CoachingSystem | None = None,
+    ) -> List[DevelopmentEvent]:
         """Process player development for the entire league during offseason."""
         
         # Get all players
@@ -76,13 +81,18 @@ class PlayerDevelopmentEngine:
             if not player.age:
                 continue
             
-            player_events = await self._develop_player(player, session)
+            player_events = await self._develop_player(player, session, coaching)
             events.extend(player_events)
         
         await session.commit()
         return events
     
-    async def _develop_player(self, player: Player, session: AsyncSession) -> List[DevelopmentEvent]:
+    async def _develop_player(
+        self,
+        player: Player,
+        session: AsyncSession,
+        coaching: CoachingSystem | None = None,
+    ) -> List[DevelopmentEvent]:
         """Develop a single player based on age, potential, and other factors."""
         
         events = []
@@ -110,6 +120,9 @@ class PlayerDevelopmentEngine:
         injury_penalty = await self._get_injury_penalty(player, session)
         base_rate -= injury_penalty
         
+        if coaching is not None and player.team_id is not None:
+            base_rate += coaching.development_bonus(player.team_id)
+
         # Apply development to different attribute categories
         events.extend(self._develop_physical_attributes(player, base_rate))
         events.extend(self._develop_mental_attributes(player, base_rate))

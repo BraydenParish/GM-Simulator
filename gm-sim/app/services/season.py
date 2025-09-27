@@ -10,6 +10,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from app.services.llm import OpenRouterClient
 from app.services.sim import simulate_game
+from app.services.coaching import CoachingSystem
 from app.services.injuries import InjuryEngine, InjuryEvent, PlayerParticipation
 from app.services.state import GameStateStore, attach_names_to_participants
 from app.services.analytics import compute_drive_analytics
@@ -63,6 +64,7 @@ class GameLog:
     injuries: List[InjuryEvent] = field(default_factory=list)
     narrative_facts: Optional[Dict[str, object]] = None
     analytics: Optional[Dict[str, Any]] = None
+    coaching_notes: Dict[str, Dict[str, object]] = field(default_factory=dict)
 
 
 class SeasonSimulator:
@@ -78,6 +80,7 @@ class SeasonSimulator:
         rosters: Optional[Dict[int, List[PlayerParticipation]]] = None,
         state_store: Optional[GameStateStore] = None,
         season_year: int = 2024,
+        coaching_system: Optional[CoachingSystem] = None,
     ) -> None:
         self.teams: List[TeamSeed] = list(teams)
         if not self.teams:
@@ -93,6 +96,7 @@ class SeasonSimulator:
         self.injury_engine = injury_engine
         self.state_store = state_store
         self.season_year = season_year
+        self.coaching_system = coaching_system
         if self.injury_engine and rosters is None:
             raise ValueError("Rosters must be provided when using an injury engine")
         if rosters is None:
@@ -133,6 +137,11 @@ class SeasonSimulator:
             away_team = self._get_team(away_id)
             home_rating = home_team.rating
             away_rating = away_team.rating
+            coaching_notes: Dict[str, Dict[str, object]] = {}
+            if self.coaching_system is not None:
+                home_rating = self.coaching_system.apply_rating(home_id, home_rating)
+                away_rating = self.coaching_system.apply_rating(away_id, away_rating)
+                coaching_notes = self.coaching_system.describe_matchup(home_id, away_id)
             injuries: List[InjuryEvent] = []
             if self.injury_engine is not None:
                 home_roster = self._rosters.get(home_id, [])
@@ -193,6 +202,7 @@ class SeasonSimulator:
                 recap=recap_summary,
                 narrative_facts=recap_facts,
                 injuries=injuries,
+                coaching_notes=coaching_notes,
             )
         if self.injury_engine is not None and matchups:
             self.injury_engine.rest_week(self._rosters)
@@ -241,6 +251,7 @@ class SeasonSimulator:
         recap: Optional[str],
         narrative_facts: Optional[Dict[str, object]] = None,
         injuries: Optional[List[InjuryEvent]] = None,
+        coaching_notes: Optional[Dict[str, Dict[str, object]]] = None,
     ) -> None:
         home_score = int(result["home_score"])
         away_score = int(result["away_score"])
@@ -267,6 +278,11 @@ class SeasonSimulator:
                 )
             )
 
+        notes = narrative_facts or {}
+        if coaching_notes:
+            notes = dict(notes or {})
+            notes.setdefault("coaching", coaching_notes)
+
         log = GameLog(
             week=week_index,
             home_team_id=home_team.id,
@@ -277,8 +293,10 @@ class SeasonSimulator:
             drives=list(result.get("drives", [])),  # type: ignore[list-item]
             headline=str(result.get("headline", "")),
             recap=recap,
-            narrative_facts=narrative_facts,
+            narrative_facts=notes,
         )
+        if coaching_notes:
+            log.coaching_notes = coaching_notes
         log.analytics = compute_drive_analytics(
             drives=log.drives,
             home_score=home_score,

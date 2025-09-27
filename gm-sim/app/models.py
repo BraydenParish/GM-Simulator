@@ -291,3 +291,41 @@ class FranchiseState(Base):
     draft_picks_used = Column(JSON, nullable=False, default=list)
     trades = Column(JSON, nullable=False, default=list)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class Coach(Base):
+    __tablename__ = "coaches"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
+    role_primary = Column(String, nullable=False)
+    scheme = Column(String, nullable=False)
+    leadership = Column(Float, default=0.0)
+    development = Column(Float, default=0.0)
+    tactics = Column(Float, default=0.0)
+    discipline = Column(Float, default=0.0)
+    experience_years = Column(Integer, default=0)
+    specialties = Column(JSON, default=list)
+
+
+class CoachAssignment(Base):
+    __tablename__ = "coach_assignments"
+
+    id = Column(Integer, primary_key=True)
+    coach_id = Column(Integer, ForeignKey("coaches.id"), nullable=False)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    role = Column(String, nullable=False)
+    hired_at = Column(DateTime, server_default=func.now())
+    contract_years = Column(Integer, default=3)
+    salary = Column(Float, default=2.5)
+    active = Column(Boolean, default=True)
+    interim = Column(Boolean, default=False)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "team_id",
+            "role",
+            "active",
+            name="uq_coach_assignment_active_role",
+        ),
+    )

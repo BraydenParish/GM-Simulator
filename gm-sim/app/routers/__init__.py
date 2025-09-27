@@ -2,6 +2,7 @@
 
 from . import (
     assistant,
+    coaching,
     contracts,
     depth,
     development,
@@ -22,6 +23,7 @@ from . import (
 
 __all__ = [
     "assistant",
+    "coaching",
     "contracts",
     "depth",
     "development",

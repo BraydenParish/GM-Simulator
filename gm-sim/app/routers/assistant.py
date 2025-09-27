@@ -10,6 +10,8 @@ from sqlalchemy.orm import aliased
 from app.db import get_db
 from app.models import Game, Schedule, Standing, Team
 from app.schemas import (
+    FreeAgentBiddingRequest,
+    FreeAgentBiddingResult,
     FreeAgentProjectionRead,
     FreeAgentSigningPlan,
     FreeAgentSigningResponse,
@@ -22,6 +24,7 @@ from app.schemas import (
     UpcomingGameSummary,
 )
 from app.services.free_agency import (
+    evaluate_free_agent_bidding,
     list_free_agents,
     project_free_agents,
     sign_free_agent,
@@ -69,6 +72,14 @@ async def assistant_sign_free_agent(
     db: AsyncSession = Depends(get_db),
 ) -> FreeAgentSigningResponse:
     return await sign_free_agent(db, payload)
+
+
+@router.post("/free-agents/bid", response_model=FreeAgentBiddingResult)
+async def assistant_free_agent_bidding(
+    payload: FreeAgentBiddingRequest,
+    db: AsyncSession = Depends(get_db),
+) -> FreeAgentBiddingResult:
+    return await evaluate_free_agent_bidding(db, payload)
 
 
 @router.get("/games/{game_id}/highlights", response_model=GameSummaryWithHighlights)

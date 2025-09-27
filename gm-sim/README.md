@@ -262,10 +262,11 @@ See [docs/API_GUIDE.md](docs/API_GUIDE.md) for comprehensive documentation.
 - ✅ Salary cap management and contract system
 - ✅ Playoff bracket generation and postseason simulation
 - ✅ Advanced analytics overlays (EPA + win probability charts)
+- ✅ Coaching systems with scheme-fit modifiers impacting ratings & development
+- ✅ Free-agency bidding evaluator to compare multi-team offers
 
 ### Future Enhancements
-- **Free Agency**: Realistic bidding and contract negotiations
-- **Coaching Systems**: Scheme fits and coaching impact on development
+- **Free Agency Portal**: Multi-offer negotiation UX exposed via web client
 - **Web Interface**: React/Vue frontend for easier franchise management
 - **Multiplayer**: Multi-user leagues with human GMs
 
