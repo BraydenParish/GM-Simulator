@@ -1,4 +1,5 @@
 import builtins
+from datetime import datetime
 from typing import Any, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
@@ -24,6 +25,72 @@ class TeamRead(TeamBase):
     id: int
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CoachBase(BaseModel):
+    name: str
+    role_primary: str
+    scheme: str
+    leadership: float = 0.0
+    development: float = 0.0
+    tactics: float = 0.0
+    discipline: float = 0.0
+    experience_years: int = 0
+    specialties: List[str] = Field(default_factory=list)
+
+
+class CoachCreate(CoachBase):
+    pass
+
+
+class CoachRead(CoachBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CoachHireRequest(BaseModel):
+    team_id: int
+    role: str
+    contract_years: int = 3
+    salary: float = 2.5
+    interim: bool = False
+
+    @field_validator("contract_years")
+    @classmethod
+    def _validate_contract(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("contract_years must be positive")
+        return value
+
+
+class CoachEffectRead(BaseModel):
+    rating_adjustment: float
+    development_rate_bonus: float
+    cap_efficiency: float
+    scheme_alignment: float
+    notes: List[str]
+
+
+class CoachAssignmentRead(BaseModel):
+    id: int
+    coach_id: int
+    coach_name: str
+    team_id: int
+    role: str
+    hired_at: datetime | None
+    contract_years: int
+    salary: float
+    interim: bool
+    active: bool
+    scheme: str
+
+
+class TeamCoachingOverview(BaseModel):
+    team_id: int
+    team_name: str
+    assignments: List[CoachAssignmentRead]
+    effect: CoachEffectRead
 
 
 class PlayerBase(BaseModel):
@@ -199,6 +266,61 @@ class DraftPickRead(DraftPickBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class InjuryReportRead(BaseModel):
+    id: int
+    season: int
+    week: int
+    team_id: int
+    team_abbr: Optional[str] = None
+    player_id: int
+    player_name: Optional[str] = None
+    severity: str
+    weeks_out: int
+    occurred_snap: Optional[int] = None
+    injury_type: str
+    expected_return_week: Optional[int] = None
+
+
+class InjuryReportList(BaseModel):
+    season: int
+    week: Optional[int] = None
+    team_id: Optional[int] = None
+    injuries: List[InjuryReportRead]
+
+
+class PlayoffGameRead(BaseModel):
+    round_number: int
+    round_name: str
+    matchup: int
+    home_team_id: int
+    home_seed: int
+    home_team: str
+    away_team_id: int
+    away_seed: int
+    away_team: str
+    home_score: int
+    away_score: int
+    winner_team_id: int
+    winner_seed: int
+    headline: str
+    narrative_recap: Optional[str] = None
+
+
+class ChampionSummary(BaseModel):
+    team_id: int
+    seed: int
+    name: str
+    abbr: str
+
+
+class PlayoffSimulationResponse(BaseModel):
+    season: int
+    bracket_size: int
+    generated_narratives: bool
+    games: List[PlayoffGameRead]
+    champion: ChampionSummary
+
+
 class TransactionBase(BaseModel):
     type: str
     team_from: Optional[int] = None
@@ -305,3 +427,167 @@ class RosterRuleRead(BaseModel):
     value: Any
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class FreeAgentSummary(BaseModel):
+    player_id: int
+    name: str
+    pos: str
+    age: Optional[int] = None
+    overall: Optional[int] = None
+    stamina: Optional[int] = None
+
+
+class FreeAgentProjectionRead(BaseModel):
+    season: int
+    name: str
+    pos: Optional[str] = None
+    tier: Optional[str] = None
+    expected_market: Optional[str] = None
+    notes: Optional[str] = None
+    source: Optional[str] = None
+    player_id: Optional[int] = None
+    overall: Optional[int] = None
+    age: Optional[int] = None
+    current_team_id: Optional[int] = None
+    current_team_abbr: Optional[str] = None
+
+
+class FreeAgentSigningPlan(BaseModel):
+    player_id: int
+    team_id: int
+    start_year: int
+    years: int
+    total_value: int
+    signing_bonus: int = 0
+    guarantees_total: Optional[int] = None
+    void_years: int = 0
+    no_trade: bool = False
+
+    @field_validator("years")
+    @classmethod
+    def _validate_years(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("years must be positive")
+        return value
+
+
+class FreeAgentSigningResponse(BaseModel):
+    contract: ContractRead
+    team_cap_space: int
+
+
+class FreeAgentOffer(BaseModel):
+    team_id: int
+    total_value: int
+    years: int
+    signing_bonus: int = 0
+    guarantees_total: Optional[int] = None
+    pitch: Optional[str] = None
+    scheme_pitch: Optional[str] = None
+
+    @field_validator("years")
+    @classmethod
+    def _validate_years(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("years must be positive")
+        return value
+
+    @field_validator("total_value")
+    @classmethod
+    def _validate_value(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("total_value must be non-negative")
+        return value
+
+
+class FreeAgentOfferEvaluation(BaseModel):
+    team_id: int
+    score: float
+    years: int
+    total_value: int
+    signing_bonus: int
+    guarantees_total: Optional[int] = None
+    cap_space: Optional[int] = None
+    notes: List[str] = Field(default_factory=list)
+
+
+class FreeAgentBiddingRequest(BaseModel):
+    player_id: int
+    start_year: int
+    offers: List[FreeAgentOffer]
+    prefer_contender: bool = False
+    loyalty_weight: float = 0.0
+
+
+class FreeAgentBiddingResult(BaseModel):
+    player_id: int
+    winning_team_id: int
+    winning_offer: FreeAgentOfferEvaluation
+    ranked_offers: List[FreeAgentOfferEvaluation]
+    rationale: str
+
+
+class UpcomingGameSummary(BaseModel):
+    game_id: int
+    week: int
+    home_team_id: int
+    away_team_id: int
+    home_team: str
+    away_team: str
+
+
+class GameHighlight(BaseModel):
+    game_id: int
+    drive_index: int
+    descriptor: str
+    team: Optional[str] = None
+    result: Optional[str] = None
+    yards: Optional[int] = None
+    clock_minutes: Optional[float] = None
+
+
+class GameSummaryWithHighlights(BaseModel):
+    game_id: int
+    season: int
+    week: int
+    home_team_id: int
+    away_team_id: int
+    home_team: str
+    away_team: str
+    home_score: int
+    away_score: int
+    narrative_recap: Optional[str] = None
+    highlights: List[GameHighlight]
+
+
+class StandingSnapshot(BaseModel):
+    team_id: int
+    team_name: str
+    team_abbr: str
+    wins: int
+    losses: int
+    ties: int
+    points_for: int
+    points_against: int
+    elo: Optional[float] = None
+
+
+class SeasonProgressSummary(BaseModel):
+    season: int
+    scheduled_weeks: int
+    scheduled_games: int
+    games_played: int
+    completed_weeks: int
+    next_week: Optional[int] = None
+    last_completed_week: Optional[int] = None
+    season_over: bool
+
+
+class SeasonDashboardResponse(BaseModel):
+    progress: SeasonProgressSummary
+    upcoming_games: List[UpcomingGameSummary]
+    standings: List[StandingSnapshot]
+    recent_games: List[GameSummaryWithHighlights]
+    free_agent_targets: List[FreeAgentProjectionRead]
+    available_free_agents: List[FreeAgentSummary]

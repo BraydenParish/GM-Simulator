@@ -76,11 +76,15 @@ def validate_structured_recap(payload: Dict[str, Any], context: Dict[str, Any]) 
         logger.warning(f"Score conversion failed: LLM scores={scoreboard.get('home_score')}, {scoreboard.get('away_score')}")
     
     if home_score_llm != home_score_actual:
-        logger.warning(f"Home score mismatch: LLM={home_score_llm}, Actual={home_score_actual} - allowing for now")
-        # Temporarily disabled: raise ValueError(f"Narrative recap home score mismatch: LLM={home_score_llm} vs Actual={home_score_actual}")
+        raise ValueError(
+            "Narrative recap home score mismatch: "
+            f"LLM={home_score_llm} vs Actual={home_score_actual}"
+        )
     if away_score_llm != away_score_actual:
-        logger.warning(f"Away score mismatch: LLM={away_score_llm}, Actual={away_score_actual} - allowing for now")
-        # Temporarily disabled: raise ValueError(f"Narrative recap away score mismatch: LLM={away_score_llm} vs Actual={away_score_actual}")
+        raise ValueError(
+            "Narrative recap away score mismatch: "
+            f"LLM={away_score_llm} vs Actual={away_score_actual}"
+        )
     
     # Relaxed team name validation - allow partial matches or similar names
     home_team_llm = str(scoreboard.get("home_team", "")).lower().strip()

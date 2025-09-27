@@ -29,12 +29,17 @@
 - Tightened the narrative contract by requiring JSON recaps validated against
   authoritative box scores/player stats and added regression tests guarding
   against mismatched scores or phantom players.
+- Delivered a playoff bracket simulator plus `/playoffs/simulate` routing so
+  conference seeds advance through elimination rounds with persisted recaps and
+  box scores.
+- Instrumented advanced analytics (drive-level EPA + win probability curves),
+  stored alongside every `Game` record and surfaced via `/games/{id}/analytics`
+  for dashboards and LLM assistants.
 
 ## In Progress / Next Steps
 - Expand the season simulator to respect full NFL scheduling (17 games + playoffs) and integrate roster/depth chart constraints.
 - Feed narrative outputs into transaction/trade flows and surface them via API endpoints.
 - Connect blended ratings with the new cap logic and offseason roster churn (draft class generator, free agency pool).
-- Layer in injury and fatigue models plus chemistry/morale modifiers before playoff simulation work.
 - Persist simulated injury outputs via new endpoints and surface team-level
   health dashboards alongside morale/chemistry plans.
 - Wire roster-rule outcomes into future salary-cap, injury, and sim logic so the newly-enforced actives/inactives directly shape gameplay.

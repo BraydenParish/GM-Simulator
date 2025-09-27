@@ -1,15 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from collections import defaultdict
+from typing import Dict, List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from typing import List, Optional
 
 from app.db import get_db
-from app.models import Team, Game, Standing, Schedule
+from app.models import Game, InjuryReport, Schedule, Standing, Team
 from app.schemas import GameRead, StandingRead
-from app.services.season import SeasonSimulator, TeamSeed
-from app.services.llm import OpenRouterClient
-from app.services.state import GameStateStore
+from app.services.coaching import CoachingSystem
 from app.services.injuries import InjuryEngine
+from app.services.llm import OpenRouterClient
+from app.services.season import SeasonSimulator, TeamSeed
+from app.services.state import GameStateStore
 
 router = APIRouter(prefix="/seasons", tags=["seasons"])
 
@@ -45,7 +48,7 @@ async def simulate_full_season(
         # Get all teams
         teams_result = await db.execute(select(Team))
         teams = list(teams_result.scalars())
-        
+
         if not teams:
             raise HTTPException(status_code=404, detail="No teams found")
         
@@ -76,16 +79,26 @@ async def simulate_full_season(
         
         injury_engine = InjuryEngine() if use_injuries else None
         state_store = GameStateStore(db)
-        
+        rosters = None
+        if injury_engine is not None:
+            rosters = await state_store.participant_rosters()
+
         # Create simulator
+        coaching_system = await CoachingSystem.build(db)
+
         simulator = SeasonSimulator(
             team_seeds,
             narrative_client=narrative_client,
             injury_engine=injury_engine,
+            rosters=rosters,
             state_store=state_store,
             season_year=season,
+            coaching_system=coaching_system,
         )
         
+        # Clear prior injury reports for this season to avoid duplication
+        await db.execute(delete(InjuryReport).where(InjuryReport.season == season))
+
         # Run simulation
         game_logs = await simulator.simulate_season()
         
@@ -103,6 +116,15 @@ async def simulate_full_season(
     
     # Save games to database
     for log in game_logs:
+        injury_records: Dict[int, Dict[str, object]] = {}
+        for event in log.injuries:
+            payload = event.to_dict(current_week=log.week, season=season)
+            if payload["player_id"] is None:
+                continue
+            injury_records[int(payload["player_id"])] = payload
+
+        injuries_payload = list(injury_records.values())
+        analytics_payload = log.analytics or {}
         game = Game(
             season=season,
             week=log.week,
@@ -111,12 +133,28 @@ async def simulate_full_season(
             home_score=log.home_score,
             away_score=log.away_score,
             sim_seed=None,
-            box_json={"drives": log.drives},
-            injuries_json=log.injuries,
+            box_json={"drives": log.drives, "analytics": analytics_payload},
+            injuries_json=injuries_payload,
             narrative_recap=log.recap,
             narrative_facts=log.narrative_facts,
         )
         db.add(game)
+
+        for payload in injuries_payload:
+            occurred_snap = payload.get("occurred_snap")
+            db.add(
+                InjuryReport(
+                    season=season,
+                    week=log.week,
+                    team_id=int(payload["team_id"]),
+                    player_id=int(payload["player_id"]),
+                    severity=str(payload["severity"]),
+                    weeks_out=int(payload["weeks_out"]),
+                    occurred_snap=int(occurred_snap) if occurred_snap is not None else None,
+                    injury_type=str(payload["injury_type"]),
+                    expected_return_week=payload.get("expected_return_week"),
+                )
+            )
     
     # Update standings
     standings_data = simulator.standings()
@@ -163,6 +201,7 @@ async def simulate_week(
     season: int,
     week: int,
     generate_narratives: bool = True,
+    use_injuries: bool = False,
     db: AsyncSession = Depends(get_db),
 ):
     """Simulate a specific week of games."""
@@ -176,8 +215,16 @@ async def simulate_week(
     if not schedule_games:
         raise HTTPException(status_code=404, detail=f"No schedule found for season {season}, week {week}")
     
+    await db.execute(
+        delete(InjuryReport).where(
+            InjuryReport.season == season, InjuryReport.week == week
+        )
+    )
+
     games_created = []
-    
+    state_store = GameStateStore(db)
+    coaching_system = await CoachingSystem.build(db)
+
     for scheduled_game in schedule_games:
         # Get teams
         home_team = (await db.execute(select(Team).where(Team.id == scheduled_game.home_team_id))).scalar_one_or_none()
@@ -194,13 +241,20 @@ async def simulate_week(
         
         # Set up simulator for just these two teams
         narrative_client = OpenRouterClient() if generate_narratives else None
-        state_store = GameStateStore(db)
-        
+        injury_engine = None
+        rosters = None
+        if use_injuries:
+            injury_engine = InjuryEngine()
+            rosters = await state_store.participant_rosters()
+
         simulator = SeasonSimulator(
             team_seeds,
             narrative_client=narrative_client,
+            injury_engine=injury_engine,
+            rosters=rosters,
             state_store=state_store,
             season_year=season,
+            coaching_system=coaching_system,
         )
         
         # Simulate just this matchup
@@ -211,6 +265,16 @@ async def simulate_week(
         game_logs = simulator.games()
         if game_logs:
             log = game_logs[0]
+            injury_records: Dict[int, Dict[str, object]] = {}
+            for event in log.injuries:
+                payload = event.to_dict(current_week=week, season=season)
+                if payload["player_id"] is None:
+                    continue
+                injury_records[int(payload["player_id"])] = payload
+
+            injuries_payload = list(injury_records.values())
+
+            analytics_payload = log.analytics or {}
             game = Game(
                 season=season,
                 week=week,
@@ -219,13 +283,31 @@ async def simulate_week(
                 home_score=log.home_score,
                 away_score=log.away_score,
                 sim_seed=None,
-                box_json={"drives": log.drives},
-                injuries_json=log.injuries,
+                box_json={"drives": log.drives, "analytics": analytics_payload},
+                injuries_json=injuries_payload,
                 narrative_recap=log.recap,
                 narrative_facts=log.narrative_facts,
             )
             db.add(game)
             games_created.append(game)
+
+            for payload in injuries_payload:
+                occurred_snap = payload.get("occurred_snap")
+                db.add(
+                    InjuryReport(
+                        season=season,
+                        week=week,
+                        team_id=int(payload["team_id"]),
+                        player_id=int(payload["player_id"]),
+                        severity=str(payload["severity"]),
+                        weeks_out=int(payload["weeks_out"]),
+                        occurred_snap=int(occurred_snap)
+                        if occurred_snap is not None
+                        else None,
+                        injury_type=str(payload["injury_type"]),
+                        expected_return_week=payload.get("expected_return_week"),
+                    )
+                )
             
             # Update standings
             standings_data = simulator.standings()
@@ -267,65 +349,178 @@ async def simulate_week(
     }
 
 
-@router.post("/generate-schedule")
-async def generate_schedule(
-    season: int,
-    weeks: int = 17,
-    db: AsyncSession = Depends(get_db),
-):
-    """Generate a round-robin schedule for the season."""
-    
-    # Get all teams
+async def _team_seeds(db: AsyncSession) -> List[TeamSeed]:
     teams_result = await db.execute(select(Team))
     teams = list(teams_result.scalars())
-    
     if not teams:
         raise HTTPException(status_code=404, detail="No teams found")
-    
-    # Clear existing schedule for this season
-    await db.execute(select(Schedule).where(Schedule.season == season))
-    
-    # Build team seeds
-    team_seeds = [
+    return [
         TeamSeed(
             id=team.id,
             name=team.name,
             abbr=team.abbr,
-            rating=team.elo or 1500
+            rating=team.elo or 1500,
         )
         for team in teams
     ]
-    
-    # Create simulator to get schedule
+
+
+async def _generate_schedule(
+    db: AsyncSession,
+    *,
+    season: int,
+    weeks: int,
+    replace_existing: bool,
+) -> Dict[str, int]:
+    if weeks < 1:
+        raise HTTPException(status_code=400, detail="Weeks must be at least 1")
+
+    if replace_existing:
+        await db.execute(delete(Schedule).where(Schedule.season == season))
+    else:
+        existing = await db.scalar(
+            select(func.count()).select_from(Schedule).where(Schedule.season == season)
+        )
+        if existing:
+            return {"weeks_scheduled": weeks, "total_games": 0}
+
+    team_seeds = await _team_seeds(db)
     simulator = SeasonSimulator(team_seeds, season_year=season)
-    
-    # Generate schedule entries
-    schedule_entries = []
+
+    scheduled_weeks = min(weeks, len(simulator.schedule))
+    created_games = 0
     for week_num, matchups in enumerate(simulator.schedule, start=1):
         if week_num > weeks:
             break
         for home_id, away_id in matchups:
-            schedule_entry = Schedule(
-                season=season,
-                week=week_num,
-                home_team_id=home_id,
-                away_team_id=away_id,
-                game_time=None,  # Could add specific times later
+            db.add(
+                Schedule(
+                    season=season,
+                    week=week_num,
+                    home_team_id=home_id,
+                    away_team_id=away_id,
+                    game_time=None,
+                )
             )
-            schedule_entries.append(schedule_entry)
-    
-    # Save to database
-    for entry in schedule_entries:
-        db.add(entry)
-    
+            created_games += 1
+
     await db.commit()
-    
+    return {"weeks_scheduled": scheduled_weeks, "total_games": created_games}
+
+
+async def _season_progress(db: AsyncSession, season: int) -> Dict[str, Optional[int] | int | bool]:
+    schedule_rows = await db.execute(
+        select(Schedule.week, func.count())
+        .where(Schedule.season == season)
+        .group_by(Schedule.week)
+    )
+    schedule_counts = {week: count for week, count in schedule_rows}
+
+    if not schedule_counts:
+        return {
+            "season": season,
+            "scheduled_weeks": 0,
+            "scheduled_games": 0,
+            "games_played": 0,
+            "completed_weeks": 0,
+            "next_week": None,
+            "last_completed_week": None,
+            "season_over": False,
+        }
+
+    game_rows = await db.execute(
+        select(Game.week, func.count())
+        .where(Game.season == season)
+        .group_by(Game.week)
+    )
+    games_counts = defaultdict(int, {week: count for week, count in game_rows})
+
+    total_games = sum(schedule_counts.values())
+    games_played = sum(min(games_counts[week], schedule_counts[week]) for week in schedule_counts)
+
+    completed_weeks = 0
+    last_completed_week: Optional[int] = None
+    next_week: Optional[int] = None
+    for week in sorted(schedule_counts):
+        scheduled = schedule_counts[week]
+        played = games_counts[week]
+        if played >= scheduled and scheduled > 0:
+            completed_weeks += 1
+            last_completed_week = week
+        elif next_week is None:
+            next_week = week
+
+    season_over = next_week is None
+
     return {
         "season": season,
-        "weeks_scheduled": min(weeks, len(simulator.schedule)),
-        "total_games": len(schedule_entries),
-        "teams": len(teams),
+        "scheduled_weeks": len(schedule_counts),
+        "scheduled_games": total_games,
+        "games_played": games_played,
+        "completed_weeks": completed_weeks,
+        "next_week": next_week,
+        "last_completed_week": last_completed_week,
+        "season_over": season_over,
     }
+
+
+@router.post("/generate-schedule")
+async def generate_schedule(
+    season: int,
+    weeks: int = 18,
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate or replace the round-robin schedule for the season."""
+
+    schedule_meta = await _generate_schedule(
+        db, season=season, weeks=weeks, replace_existing=True
+    )
+
+    progress = await _season_progress(db, season)
+    return {
+        **schedule_meta,
+        **progress,
+    }
+
+
+@router.post("/quickstart")
+async def quickstart_season(
+    season: int,
+    weeks: int = 18,
+    force: bool = False,
+    db: AsyncSession = Depends(get_db),
+):
+    """Ensure a season has a schedule and return progress metadata for the UI."""
+
+    created_schedule = False
+    if force:
+        await _generate_schedule(db, season=season, weeks=weeks, replace_existing=True)
+        created_schedule = True
+    else:
+        existing = await db.scalar(
+            select(func.count()).select_from(Schedule).where(Schedule.season == season)
+        )
+        if not existing:
+            await _generate_schedule(db, season=season, weeks=weeks, replace_existing=True)
+            created_schedule = True
+
+    progress = await _season_progress(db, season)
+    return {
+        "season": season,
+        "schedule_created": created_schedule,
+        "weeks_requested": weeks,
+        **progress,
+    }
+
+
+@router.get("/progress")
+async def season_progress(
+    season: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """Expose season progress metadata for the frontend."""
+
+    return await _season_progress(db, season)
 
 
 @router.get("/schedule")

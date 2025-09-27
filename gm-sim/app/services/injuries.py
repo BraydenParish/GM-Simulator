@@ -86,6 +86,33 @@ class InjuryEvent:
     weeks_out: int
     occurred_snap: int
     injury_type: str
+    week: int | None = None
+    season: int | None = None
+
+    def to_dict(
+        self,
+        *,
+        current_week: int | None = None,
+        season: int | None = None,
+    ) -> Dict[str, int | str | None]:
+        """Serialize the injury for persistence and APIs."""
+
+        week_value = current_week if current_week is not None else self.week
+        season_value = season if season is not None else self.season
+        expected_return: int | None = None
+        if week_value is not None:
+            expected_return = week_value + max(int(self.weeks_out), 0)
+        return {
+            "player_id": self.player_id,
+            "team_id": self.team_id,
+            "severity": self.severity,
+            "weeks_out": int(self.weeks_out),
+            "occurred_snap": int(self.occurred_snap),
+            "injury_type": self.injury_type,
+            "week": week_value,
+            "season": season_value,
+            "expected_return_week": expected_return,
+        }
 
 
 class InjuryEngine:

@@ -20,12 +20,21 @@ async def create_team(team_in: TeamCreate, db: AsyncSession = Depends(get_db)):
     # Check if team abbreviation already exists
     existing_result = await db.execute(select(Team).where(Team.abbr == team_in.abbr))
     existing_team = existing_result.scalar_one_or_none()
-    if existing_team:
+    if existing_team is not None:
+        existing_name = (existing_team.name or "").strip().lower()
+        incoming_name = team_in.name.strip().lower()
+        if existing_name == incoming_name:
+            for attr, value in team_in.model_dump().items():
+                setattr(existing_team, attr, value)
+            await db.commit()
+            await db.refresh(existing_team)
+            return existing_team
+
         raise HTTPException(
-            status_code=409, 
+            status_code=409,
             detail=f"Team abbreviation '{team_in.abbr}' already exists"
         )
-    
+
     team = Team(**team_in.model_dump())
     db.add(team)
     await db.commit()

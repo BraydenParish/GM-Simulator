@@ -64,6 +64,11 @@ A comprehensive NFL franchise management simulator backend built with FastAPI, S
    - Interactive docs: [http://localhost:8000/docs](http://localhost:8000/docs)
    - Alternative docs: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
+5. **Launch the lightweight web client**
+   - Visit [http://localhost:8000/](http://localhost:8000/) for a minimal control center.
+   - Click **Initialize Season** to auto-generate a schedule, then **Simulate Next Week** to advance.
+   - Standings, progress, and narrative recaps update after every simulation.
+
 ### Optional: Enable AI Narratives
 ```sh
 export OPENROUTER_API_KEY="your-api-key"
@@ -87,6 +92,12 @@ requests.post("http://localhost:8000/seasons/simulate-full", params={
 
 # Check final standings
 standings = requests.get("http://localhost:8000/seasons/standings", params={"season": 2024})
+
+# Review persisted injury reports for the season
+injury_report = requests.get(
+    "http://localhost:8000/injuries/report",
+    params={"season": 2024},
+)
 ```
 
 ### Conduct a Draft
@@ -99,6 +110,39 @@ draft_results = requests.post("http://localhost:8000/draft/conduct", params={
     "year": 2024,
     "auto_draft": True
 })
+```
+
+### Drive an LLM Assistant Workflow
+```python
+import requests
+
+# Surface a consolidated dashboard for the chat agent
+dashboard = requests.get(
+    "http://localhost:8000/assistant/season-dashboard",
+    params={"season": 2025, "free_agent_limit": 5},
+).json()
+
+# Inspect projected free-agent targets for the upcoming offseason
+projections = requests.get(
+    "http://localhost:8000/assistant/free-agents/projections",
+    params={"season": 2025},
+).json()
+
+# Sign a free agent with an even cash-flow contract constructed for the LLM
+signing = requests.post(
+    "http://localhost:8000/assistant/free-agents/sign",
+    json={
+        "player_id": 123,
+        "team_id": 5,
+        "start_year": 2025,
+        "years": 3,
+        "total_value": 36000000,
+        "signing_bonus": 12000000,
+    },
+).json()
+
+# Pull big-play highlights from a simulated matchup to narrate the recap
+highlights = requests.get("http://localhost:8000/assistant/games/42/highlights").json()
 ```
 
 ### Evaluate Trades
@@ -206,7 +250,7 @@ See [docs/API_GUIDE.md](docs/API_GUIDE.md) for comprehensive documentation.
 
 ## 🎯 Roadmap
 
-### Completed (90%+ Feature Complete)
+### Completed (~85% Feature Complete)
 - ✅ Core game simulation with realistic results
 - ✅ Full season orchestration and scheduling  
 - ✅ AI narrative generation integration
@@ -216,12 +260,13 @@ See [docs/API_GUIDE.md](docs/API_GUIDE.md) for comprehensive documentation.
 - ✅ Injury and fatigue modeling
 - ✅ Multi-season persistence and save/load
 - ✅ Salary cap management and contract system
+- ✅ Playoff bracket generation and postseason simulation
+- ✅ Advanced analytics overlays (EPA + win probability charts)
+- ✅ Coaching systems with scheme-fit modifiers impacting ratings & development
+- ✅ Free-agency bidding evaluator to compare multi-team offers
 
 ### Future Enhancements
-- **Playoff System**: Bracket generation and postseason simulation
-- **Free Agency**: Realistic bidding and contract negotiations
-- **Coaching Systems**: Scheme fits and coaching impact on development
-- **Advanced Analytics**: EPA, win probability, and modern metrics
+- **Free Agency Portal**: Multi-offer negotiation UX exposed via web client
 - **Web Interface**: React/Vue frontend for easier franchise management
 - **Multiplayer**: Multi-user leagues with human GMs
 

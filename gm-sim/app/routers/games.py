@@ -8,7 +8,8 @@ from app.services.sim import simulate_game
 from app.services.ratings import compute_team_rating
 from app.services.llm import OpenRouterClient
 from app.services.state import GameStateStore
-from typing import Dict
+from app.services.analytics import compute_drive_analytics
+from typing import Any, Dict, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -75,6 +76,12 @@ async def simulate_game_endpoint(
             logger.warning(f"Failed to generate narrative for game: {e}")
             # Continue without narrative - don't fail the entire simulation
     
+    analytics_payload = compute_drive_analytics(
+        drives=sim_result.get("drives", []),
+        home_score=int(sim_result["home_score"]),
+        away_score=int(sim_result["away_score"]),
+    )
+
     game = Game(
         season=season,
         week=week,
@@ -83,7 +90,11 @@ async def simulate_game_endpoint(
         home_score=sim_result["home_score"],
         away_score=sim_result["away_score"],
         sim_seed=None,
-        box_json=sim_result["box"],
+        box_json={
+            "box": sim_result["box"],
+            "drives": sim_result.get("drives", []),
+            "analytics": analytics_payload,
+        },
         injuries_json=None,
         narrative_recap=narrative_recap,
         narrative_facts=narrative_facts,
@@ -124,3 +135,44 @@ async def simulate_game_endpoint(
             standing.ties += 1
     await db.commit()
     return game
+
+
+@router.get("/by-week", response_model=List[GameRead])
+async def list_games_by_week(
+    season: int,
+    week: int,
+    db: AsyncSession = Depends(get_db),
+) -> List[GameRead]:
+    """Return games (with narratives) for a given season and week."""
+
+    games_result = await db.execute(
+        select(Game)
+        .where(Game.season == season, Game.week == week)
+        .order_by(Game.id)
+    )
+    games = list(games_result.scalars())
+    if not games:
+        return []
+    return games
+
+
+@router.get("/{game_id}/analytics")
+async def get_game_analytics(
+    game_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    game = (
+        await db.execute(select(Game).where(Game.id == game_id))
+    ).scalar_one_or_none()
+    if game is None:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    box_payload = game.box_json or {}
+    analytics = box_payload.get("analytics")
+    if not analytics:
+        analytics = compute_drive_analytics(
+            drives=box_payload.get("drives", []),
+            home_score=game.home_score or 0,
+            away_score=game.away_score or 0,
+        )
+    return analytics

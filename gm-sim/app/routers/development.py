@@ -5,6 +5,7 @@ from typing import List, Optional
 
 from app.db import get_db
 from app.models import Player, PlayerStamina, Injury
+from app.services.coaching import CoachingSystem
 from app.services.development import PlayerDevelopmentEngine, StaminaManager, TrainingCampManager
 from app.services.injuries import InjuryEngine
 
@@ -19,7 +20,8 @@ async def process_offseason_development(
     """Process player development for the entire league during offseason."""
     
     engine = PlayerDevelopmentEngine(seed)
-    events = await engine.process_offseason_development(db)
+    coaching = await CoachingSystem.build(db)
+    events = await engine.process_offseason_development(db, coaching=coaching)
     
     # Group events by type
     development_events = [e for e in events if e.reason == "development"]
