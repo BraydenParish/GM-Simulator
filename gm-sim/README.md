@@ -250,7 +250,7 @@ See [docs/API_GUIDE.md](docs/API_GUIDE.md) for comprehensive documentation.
 
 ## 🎯 Roadmap
 
-### Completed (90%+ Feature Complete)
+### Completed (~85% Feature Complete)
 - ✅ Core game simulation with realistic results
 - ✅ Full season orchestration and scheduling  
 - ✅ AI narrative generation integration
